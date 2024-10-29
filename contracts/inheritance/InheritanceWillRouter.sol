@@ -2,24 +2,23 @@
 pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {WillRouter} from "./common/WillRouter.sol";
-import {WillFactory} from "./common/WillFactory.sol";
+import {WillRouter} from "../common/WillRouter.sol";
+import {WillFactory} from "../common/WillFactory.sol";
 import {InheritanceWill} from "./InheritanceWill.sol";
-import {SafeGuard} from "./SafeGuard.sol";
-import {IInheritanceWill} from "./interfaces/IInheritanceWill.sol";
-import {ISafeGuard} from "./interfaces/ISafeGuard.sol";
-import {InheritanceWillStruct} from "./libraries/InheritanceWillStruct.sol";
-import {ISafeWallet} from "./interfaces/ISafeWallet.sol";
+import {SafeGuard} from "../SafeGuard.sol";
+import {IInheritanceWill} from "../interfaces/IInheritanceWill.sol";
+import {ISafeGuard} from "../interfaces/ISafeGuard.sol";
+import {ISafeWallet} from "../interfaces/ISafeWallet.sol";
+import {InheritanceWillStruct} from "../libraries/InheritanceWillStruct.sol";
 
 contract InheritanceWillRouter is WillRouter, WillFactory, ReentrancyGuard {
   /* Error */
   error ExistedGuardInSafeWallet(address);
   error SignerIsNotOwnerOfSafeWallet();
-  error NotEnoughEther();
-  error BeneficiaryLimitExceeded();
-  error EmptyArray();
-  error WillLimitExceeded(address user);
-  error TwoArraysLengthMismatch();
+  error NumBeneficiariesInvalid();
+  error BeneficiariesInvalid();
+  error MinRequiredSignaturesInvalid();
+  error ActivationTriggerInvalid();
   error GuardSafeWalletInvalid();
   error ModuleSafeWalletInvalid();
 
@@ -36,15 +35,15 @@ contract InheritanceWillRouter is WillRouter, WillFactory, ReentrancyGuard {
     uint256 willId,
     address willAddress,
     address guardAddress,
-    address owner,
-    address safeWallet,
+    address creatorAddress,
+    address safeAddress,
     WillMainConfig mainConfig,
     InheritanceWillStruct.WillExtraConfig extraConfig,
     uint256 timestamp
   );
-  event InheritanceWillDeleted(uint256 willId, address owner, uint256 timestamp);
+
   event InheritanceWillConfigUpdated(uint256 willId, WillMainConfig mainConfig, InheritanceWillStruct.WillExtraConfig extraConfig, uint256 timestamp);
-  event InheritanceWillBeneficiesUpdated(
+  event InheritanceWillBeneficiariesUpdated(
     uint256 willId,
     string[] nickName,
     address[] beneficiaries,
@@ -55,35 +54,23 @@ contract InheritanceWillRouter is WillRouter, WillFactory, ReentrancyGuard {
   event InheritanceWillNameNoteUpdated(uint256 willId, string name, string note, uint256 timestamp);
   event InheritanceWillActivated(uint256 willId, address[] newSigners, uint256 newThreshold, bool success, uint256 timestamp);
 
-  /* Constructor */
-  constructor(uint256 beneficiaryLimit_) WillRouter(beneficiaryLimit_) {}
-
   /* Modifier */
   modifier onlySafeWallet(uint256 willId_) {
     _checkSafeWalletValid(willId_, msg.sender);
     _;
   }
 
-  /* Public function */
+  /* External function */
   /**
-   * @dev Get next will address
-   * @param sender_ sender address
-   * @return address will address
+   * @dev Check activation conditions. This activation conditions is current time >= last transaction of safe wallet + lackOfOutgoingTxRange.
+   * @param willId_ will id
+   * @return bool true if eligible for activation, false otherwise
    */
-  function getNextWillAddress(address sender_) public view returns (address) {
-    bytes memory bytecode = type(InheritanceWill).creationCode;
-    return _getNextAddress(bytecode, sender_);
-  }
+  function checkActiveWill(uint256 willId_) external view returns (bool) {
+    address willAddress = _checkWillExisted(willId_);
+    address guardAddress = _checkGuardExisted(willId_);
 
-  /**
-   * @dev Get next guard address
-   * @param sender_ sender address
-   * @return address guard address
-   */
-
-  function getNextGuardAddress(address sender_) public view returns (address) {
-    bytes memory bytecode = type(SafeGuard).creationCode;
-    return _getNextAddress(bytecode, sender_);
+    return IInheritanceWill(willAddress).checkActiveWill(guardAddress);
   }
 
   /* External function */
@@ -100,12 +87,19 @@ contract InheritanceWillRouter is WillRouter, WillFactory, ReentrancyGuard {
     WillMainConfig calldata mainConfig_,
     InheritanceWillStruct.WillExtraConfig calldata extraConfig_
   ) external nonReentrant returns (address, address) {
-    if (mainConfig_.beneficiaries.length != mainConfig_.nickNames.length) revert TwoArraysLengthMismatch();
-    if (mainConfig_.beneficiaries.length == 0) revert EmptyArray();
+    //Check beneficiaries length
+    if (mainConfig_.beneficiaries.length != mainConfig_.nickNames.length || mainConfig_.beneficiaries.length == 0) revert BeneficiariesInvalid();
+
+    // Check invalid guard
     if (_checkExistGuardInSafeWallet(safeWallet)) {
       revert ExistedGuardInSafeWallet(safeWallet);
     }
+
+    //Check invalid safe wallet
     if (!_checkSignerIsOwnerOfSafeWallet(safeWallet, msg.sender)) revert SignerIsNotOwnerOfSafeWallet();
+
+    //Check activation trigger
+    if (extraConfig_.lackOfOutgoingTxRange == 0) revert ActivationTriggerInvalid();
 
     // Create new will and guard
     (uint256 newWillId, address willAddress, address guardAddress) = _createWill(
@@ -120,8 +114,11 @@ contract InheritanceWillRouter is WillRouter, WillFactory, ReentrancyGuard {
     //Initialize safeguard
     ISafeGuard(guardAddress).initialize();
 
+    //Check min require signatures
+    if (extraConfig_.minRequiredSignatures == 0 || extraConfig_.minRequiredSignatures > numberOfBeneficiaries) revert MinRequiredSignaturesInvalid();
+
     // Check beneficiary limit
-    if (!_checkBeneficiaryLimit(numberOfBeneficiaries)) revert BeneficiaryLimitExceeded();
+    if (!_checkNumBeneficiariesLimit(numberOfBeneficiaries)) revert NumBeneficiariesInvalid();
 
     emit InheritanceWillCreated(newWillId, willAddress, guardAddress, msg.sender, safeWallet, mainConfig_, extraConfig_, block.timestamp);
 
@@ -139,21 +136,26 @@ contract InheritanceWillRouter is WillRouter, WillFactory, ReentrancyGuard {
     WillMainConfig calldata mainConfig_,
     InheritanceWillStruct.WillExtraConfig calldata extraConfig_
   ) external onlySafeWallet(willId_) nonReentrant {
-    //Check length beneficiaries[]
-    if (mainConfig_.beneficiaries.length != mainConfig_.nickNames.length) revert TwoArraysLengthMismatch();
-    if (mainConfig_.beneficiaries.length == 0) revert EmptyArray();
-
     address willAddress = _checkWillExisted(willId_);
 
-    //Set beneficiaries[]
+    //Check beneficiaries length
+    if (mainConfig_.beneficiaries.length != mainConfig_.nickNames.length || mainConfig_.beneficiaries.length == 0) revert BeneficiariesInvalid();
+
+    //Check activation trigger
+    if (extraConfig_.lackOfOutgoingTxRange == 0) revert ActivationTriggerInvalid();
+
+    //Set beneficiaries
     uint256 numberOfBeneficiaries = IInheritanceWill(willAddress).setWillBeneficiaries(
       msg.sender,
       mainConfig_.beneficiaries,
       extraConfig_.minRequiredSignatures
     );
 
+    //Check min require signatures
+    if (extraConfig_.minRequiredSignatures == 0 || extraConfig_.minRequiredSignatures > numberOfBeneficiaries) revert MinRequiredSignaturesInvalid();
+
     //Check beneficiary limit
-    if (!_checkBeneficiaryLimit(numberOfBeneficiaries)) revert BeneficiaryLimitExceeded();
+    if (!_checkNumBeneficiariesLimit(numberOfBeneficiaries)) revert NumBeneficiariesInvalid();
 
     //Set lackOfOutgoingTxRange
     IInheritanceWill(willAddress).setActivationTrigger(msg.sender, extraConfig_.lackOfOutgoingTxRange);
@@ -175,19 +177,20 @@ contract InheritanceWillRouter is WillRouter, WillFactory, ReentrancyGuard {
     address[] calldata beneficiaries_,
     uint128 minRequiredSignatures_
   ) external onlySafeWallet(willId_) nonReentrant {
-    //Check length beneficiaries[]
-    if (beneficiaries_.length != nickName_.length) revert TwoArraysLengthMismatch();
-    if (beneficiaries_.length == 0) revert EmptyArray();
-
     address willAddress = _checkWillExisted(willId_);
+    //Check  beneficiaries length
+    if (beneficiaries_.length != nickName_.length || beneficiaries_.length == 0) revert BeneficiariesInvalid();
 
     //Set beneficiaries[]
     uint256 numberOfBeneficiaries = IInheritanceWill(willAddress).setWillBeneficiaries(msg.sender, beneficiaries_, minRequiredSignatures_);
 
-    //Check beneficiary limit
-    if (!_checkBeneficiaryLimit(numberOfBeneficiaries)) revert BeneficiaryLimitExceeded();
+    //Check min require signatures
+    if (minRequiredSignatures_ == 0 || minRequiredSignatures_ > numberOfBeneficiaries) revert MinRequiredSignaturesInvalid();
 
-    emit InheritanceWillBeneficiesUpdated(willId_, nickName_, beneficiaries_, minRequiredSignatures_, block.timestamp);
+    //Check beneficiary limit
+    if (!_checkNumBeneficiariesLimit(numberOfBeneficiaries)) revert NumBeneficiariesInvalid();
+
+    emit InheritanceWillBeneficiariesUpdated(willId_, nickName_, beneficiaries_, minRequiredSignatures_, block.timestamp);
   }
 
   /**
@@ -197,6 +200,9 @@ contract InheritanceWillRouter is WillRouter, WillFactory, ReentrancyGuard {
    */
   function setActivationTrigger(uint256 willId_, uint128 lackOfOutgoingTxRange_) external onlySafeWallet(willId_) nonReentrant {
     address willAddress = _checkWillExisted(willId_);
+
+    //Check activation trigger
+    if (lackOfOutgoingTxRange_ == 0) revert ActivationTriggerInvalid();
 
     //Set lackOfOutgoingTxRange
     IInheritanceWill(willAddress).setActivationTrigger(msg.sender, lackOfOutgoingTxRange_);
@@ -210,8 +216,9 @@ contract InheritanceWillRouter is WillRouter, WillFactory, ReentrancyGuard {
    * @param name_ name will
    * @param note_ note will
    */
-  function setNameNote(uint256 willId_, string calldata name_, string calldata note_) external {
+  function setNameNote(uint256 willId_, string calldata name_, string calldata note_) external onlySafeWallet(willId_) {
     _checkWillExisted(willId_);
+
     emit InheritanceWillNameNoteUpdated(willId_, name_, note_, block.timestamp);
   }
 
@@ -224,21 +231,9 @@ contract InheritanceWillRouter is WillRouter, WillFactory, ReentrancyGuard {
     address guardAddress = _checkGuardExisted(willId_);
 
     //Active will
-    (address[] memory newSigners, uint256 newThreshold) = IInheritanceWill(willAddress).activeWill(msg.sender, guardAddress);
+    (address[] memory newSigners, uint256 newThreshold) = IInheritanceWill(willAddress).activeWill(guardAddress);
 
     emit InheritanceWillActivated(willId_, newSigners, newThreshold, true, block.timestamp);
-  }
-
-  /**
-   * @dev Check activation conditions. This activation conditions is current time >= last transaction of safe wallet + lackOfOutgoingTxRange.
-   * @param willId_ will id
-   * @return bool true if eligible for activation, false otherwise
-   */
-  function checkActiveWill(uint256 willId_) external view returns (bool) {
-    address willAddress = _checkWillExisted(willId_);
-    address guardAddress = _checkGuardExisted(willId_);
-
-    return IInheritanceWill(willAddress).checkActiveWill(guardAddress);
   }
 
   /* Internal function */

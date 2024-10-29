@@ -2,10 +2,10 @@ import { ethers } from "hardhat";
 import "dotenv/config";
 
 async function main() {
-  const contract = await ethers.deployContract("InheritanceWillRouter");
-  console.log("Start deploying InheritanceWillRouter...");
+  const contract = await ethers.deployContract("ForwardingWillRouter");
+  console.log("Start deploying ForwardingWillRouter...");
   await contract.waitForDeployment();
-  console.log("InheritanceWillRouter deployed to:", contract.target);
+  console.log("ForwardingWillRouter deployed to:", contract.target);
 }
 
 main().catch((error) => {

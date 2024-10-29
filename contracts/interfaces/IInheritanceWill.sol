@@ -9,9 +9,7 @@ interface IInheritanceWill {
     address owner_,
     address[] calldata beneficiaries_,
     InheritanceWillStruct.WillExtraConfig calldata config_
-  ) external payable returns (uint256 numberOfBeneficiaries);
-
-  function deleteWill(address sender_) external;
+  ) external returns (uint256 numberOfBeneficiaries);
 
   function setWillBeneficiaries(
     address sender_,
@@ -19,13 +17,9 @@ interface IInheritanceWill {
     uint128 minRequiredSigs_
   ) external returns (uint256 numberOfBeneficiaries);
 
-  function setWillAssets(address sender_, address[] calldata assets_) external;
-
   function setActivationTrigger(address sender_, uint128 lackOfOutgoingTxRange_) external;
 
-  function activeWill(address sender_, address guardAddress_) external returns (address[] memory newSigners, uint256 newThreshold);
-
-  function withdrawEth(address sender_, uint256 amount_) external;
+  function activeWill(address guardAddress_) external returns (address[] memory newSigners, uint256 newThreshold);
 
   function checkActiveWill(address guardAddress_) external view returns (bool);
 }
