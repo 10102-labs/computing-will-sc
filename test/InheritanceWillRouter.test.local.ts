@@ -42,7 +42,7 @@ describe("InheritanceWillRouter", function () {
     it("Should set the right admin", async function () {
       const { deployer, inheritanceWillRouter } = await loadFixture(deployRouterFixture);
 
-      const ADMIN_ROLE = await inheritanceWillRouter.DEFAULT_ADMIN_ROLE();
+      const ADMIN_ROLE = await inheritanceWillRouter.DEFAULT_ADMINOLE();
       expect(await inheritanceWillRouter.hasRole(ADMIN_ROLE, deployer.address)).to.be.true;
     });
 

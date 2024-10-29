@@ -3,21 +3,27 @@
 pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {GenericWill} from "./common/GenericWill.sol";
-import {IERC20} from "./interfaces/IERC20.sol";
-import {ISafeGuard} from "./interfaces/ISafeGuard.sol";
-import {ISafeWallet} from "./interfaces/ISafeWallet.sol";
-import {InheritanceWillStruct} from "./libraries/InheritanceWillStruct.sol";
-import {Enum} from "./libraries/Enum.sol";
+import {GenericWill} from "../common/GenericWill.sol";
+import {IERC20} from "../interfaces/IERC20.sol";
+import {ISafeGuard} from "../interfaces/ISafeGuard.sol";
+import {ISafeWallet} from "../interfaces/ISafeWallet.sol";
+import {InheritanceWillStruct} from "../libraries/InheritanceWillStruct.sol";
+import {Enum} from "../libraries/Enum.sol";
 
 contract InheritanceWill is GenericWill {
+  error BeneficiaryInvalid();
+  error NotBeneficiary();
+  error NotEnoughContitionalActive();
+  error ExecTransactionFromModuleFailed();
+
   using EnumerableSet for EnumerableSet.AddressSet;
 
   /* State variable */
-  uint256 public constant WILL_TYPE = 1;
+  uint128 public constant WILL_TYPE = 1;
+  uint128 public _minRequiredSignatures = 1;
   EnumerableSet.AddressSet private _beneficiariesSet;
 
-  /* Public function */
+  /* View function */
   /**
    * @dev get beneficiaries list
    */
@@ -25,13 +31,28 @@ contract InheritanceWill is GenericWill {
     return _beneficiariesSet.values();
   }
 
-  /* External function */
+  /**
+   * @dev get minRequiredSignatures
+   */
+  function getMinRequiredSignatures() external view returns (uint128) {
+    return _minRequiredSignatures;
+  }
 
+  /**
+   * @dev Check activation conditions
+   * @param guardAddress_ guard
+   * @return bool true if eligible for activation, false otherwise
+   */
+  function checkActiveWill(address guardAddress_) external view returns (bool) {
+    return _checkActiveWill(guardAddress_);
+  }
+
+  /* Main function */
   /**
    * @dev Initialize info will
    * @param willId_ will id
    * @param owner_ owner of will
-   * @param beneficiaries_ beneficiaries []
+   * @param beneficiaries_ beneficiaries list
    * @param config_ include minRequiredSignatures, lackOfOutgoingTxRange
    */
   function initialize(
@@ -43,14 +64,19 @@ contract InheritanceWill is GenericWill {
     if (owner_ == address(0)) revert OwnerInvalid();
 
     //set info will
-    _setWillInfo(willId_, owner_, 1, config_.minRequiredSignatures, config_.lackOfOutgoingTxRange, msg.sender);
-    numberOfBeneficiaries = _setBeneficiaries(owner_, beneficiaries_, config_.minRequiredSignatures);
+    _setWillInfo(willId_, owner_, 1, config_.lackOfOutgoingTxRange, msg.sender);
+
+    //set minRequiredSignatures
+    _setMinRequiredSignatures(config_.minRequiredSignatures);
+
+    //set beneficiaries
+    numberOfBeneficiaries = _setBeneficiaries(owner_, beneficiaries_);
   }
 
   /**
    * @dev Set beneficiaries[], minRequiredSignatures will
-   * @param sender_  sender
-   * @param beneficiaries_ beneficiaries[]
+   * @param sender_  sender address
+   * @param beneficiaries_ beneficiaries list
    * @param minRequiredSigs_ minRequiredSignatures
    * @return numberOfBeneficiaries numberOfBeneficiares
    */
@@ -62,14 +88,16 @@ contract InheritanceWill is GenericWill {
     //clear beneficiaries
     _clearBeneficiaries();
 
+    //set minRequiredSignatures
+    _setMinRequiredSignatures(minRequiredSigs_);
+
     //set beneficiaries
-    numberOfBeneficiaries = _setBeneficiaries(sender_, beneficiaries_, minRequiredSigs_);
-    _minRequiredSignatures = minRequiredSigs_;
+    numberOfBeneficiaries = _setBeneficiaries(sender_, beneficiaries_);
   }
 
   /**
    * @dev Set lackOfOutgoingTxRange will
-   * @param sender_  sender
+   * @param sender_  sender address
    * @param lackOfOutgoingTxRange_  lackOfOutgoingTxRange
    */
   function setActivationTrigger(address sender_, uint128 lackOfOutgoingTxRange_) external onlyRouter onlyOwner(sender_) isActiveWill {
@@ -78,17 +106,10 @@ contract InheritanceWill is GenericWill {
 
   /**
    * @dev Active will
-   * @param sender_  sender
-   * @param guardAddress_ guard
-   * @return newSigners newThreshold
+   * @param guardAddress_ guard address
+   * @return newSigners new threshold list
    */
-  function activeWill(
-    address sender_,
-    address guardAddress_
-  ) external onlyRouter isActiveWill returns (address[] memory newSigners, uint256 newThreshold) {
-    //Check sender contain beneficiaries list
-    if (!_beneficiariesSet.contains(sender_)) revert NotBeneficiary();
-
+  function activeWill(address guardAddress_) external onlyRouter isActiveWill returns (address[] memory newSigners, uint256 newThreshold) {
     //Active will
     if (_checkActiveWill(guardAddress_)) {
       address[] memory benficiariesList = _beneficiariesSet.values();
@@ -100,38 +121,45 @@ contract InheritanceWill is GenericWill {
     }
   }
 
+  /* Utils function */
   /**
    * @dev Check activation conditions
    * @param guardAddress_ guard
    * @return bool true if eligible for activation, false otherwise
    */
-  function checkActiveWill(address guardAddress_) external view onlyRouter returns (bool) {
-    return _checkActiveWill(guardAddress_);
+  function _checkActiveWill(address guardAddress_) private view returns (bool) {
+    uint256 lastTimestamp = ISafeGuard(guardAddress_).getLastTimestampTxs();
+    uint256 lackOfOutgoingTxRange = uint256(getActivationTrigger());
+    uint256 triggerUint = 2592000; // mainnet
+    if (lastTimestamp + (lackOfOutgoingTxRange * triggerUint) > block.timestamp) {
+      return false;
+    }
+    return true;
   }
-
-  /* Private function */
 
   /**
    * @dev Set beneficiaries[], minRequiredSignatures will
    * @param owner_  owner will
    * @param beneficiaries_  beneficiaries[]
-   * @param minRequiredSignatures_ minRequiredSignatures
    */
-  function _setBeneficiaries(
-    address owner_,
-    address[] calldata beneficiaries_,
-    uint256 minRequiredSignatures_
-  ) private returns (uint256 numberOfBeneficiaries) {
+  function _setBeneficiaries(address owner_, address[] calldata beneficiaries_) private returns (uint256 numberOfBeneficiaries) {
+    address[] memory signers = ISafeWallet(owner_).getOwners();
     for (uint256 i = 0; i < beneficiaries_.length; ) {
-      address beneficiary = beneficiaries_[i];
-      if (beneficiary == address(0) || beneficiary == owner_) revert BeneficiaryInvalid();
-      _beneficiariesSet.add(beneficiary);
+      _checkBeneficiaries(signers, owner_, beneficiaries_[i]);
+      _beneficiariesSet.add(beneficiaries_[i]);
       unchecked {
         ++i;
       }
     }
     numberOfBeneficiaries = _beneficiariesSet.length();
-    if (minRequiredSignatures_ > numberOfBeneficiaries) revert MinRequiredSignaturesInvalid();
+  }
+
+  /**
+   * @dev set minRequireSignatures
+   * @param minRequiredSignatures_  minRequireSignatures
+   */
+  function _setMinRequiredSignatures(uint128 minRequiredSignatures_) private {
+    _minRequiredSignatures = minRequiredSignatures_;
   }
 
   /**
@@ -145,19 +173,6 @@ contract InheritanceWill is GenericWill {
         ++i;
       }
     }
-  }
-
-  /**
-   * @dev Check activation conditions
-   * @param guardAddress_ guard
-   * @return bool true if eligible for activation, false otherwise
-   */
-  function _checkActiveWill(address guardAddress_) private view returns (bool) {
-    uint256 lastTimestamp = ISafeGuard(guardAddress_).getLastTimestampTxs();
-    if (lastTimestamp + _lackOfOutgoingTxRange >= block.timestamp) {
-      return false;
-    }
-    return true;
   }
 
   /**
@@ -182,5 +197,22 @@ contract InheritanceWill is GenericWill {
     }
     newSigners = ISafeWallet(owner).getOwners();
     newThreshold = ISafeWallet(owner).getThreshold();
+  }
+
+  /**
+   *
+   * @param signers_  signer list
+   * @param owner_  safe wallet address
+   * @param beneficiary_ beneficiary address
+   */
+  function _checkBeneficiaries(address[] memory signers_, address owner_, address beneficiary_) private pure {
+    if (beneficiary_ == address(0) || beneficiary_ == owner_) revert BeneficiaryInvalid();
+
+    for (uint256 j = 0; j < signers_.length; ) {
+      if (beneficiary_ == signers_[j]) revert BeneficiaryInvalid();
+      unchecked {
+        j++;
+      }
+    }
   }
 }
