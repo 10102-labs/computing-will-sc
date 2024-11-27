@@ -18,11 +18,11 @@ contract ForwardingEOAWill is GenericWill {
   error AssetInvalid();
   error PercentInvalid();
   error TotalPercentInvalid();
-  error NotEnoughContitionalActive();
+  error NotEnoughConditionalActive();
   error ExecTransactionFromModuleFailed();
   error BeneficiariesIsClaimed();
   error WillIsDeleted();
-  error SafeTransfromFailed(address, address, address);
+  error SafeTransferFromFailed(address, address, address);
   error NotEnoughETH();
 
   /* State variable */
@@ -58,10 +58,10 @@ contract ForwardingEOAWill is GenericWill {
 
   /* Main function */
   /**
-   * @dev Intialize info will
+   * @dev Initialize info will
    * @param willId_ will id
    * @param owner_ owner of will
-   * @param distributions_ ditributions list
+   * @param distributions_ distributions list
    * @param config_ include lackOfOutgoingTxRange
    */
   function initialize(
@@ -82,7 +82,7 @@ contract ForwardingEOAWill is GenericWill {
   /**
    * @dev set distributions[]
    * @param sender_  sender address
-   * @param distributions_ ditributions
+   * @param distributions_ distributions
    */
   function setWillDistributions(
     address sender_,
@@ -149,7 +149,7 @@ contract ForwardingEOAWill is GenericWill {
       }
       assets = _transferAssetToBeneficiaries(assets_, isETH_);
     } else {
-      revert NotEnoughContitionalActive();
+      revert NotEnoughConditionalActive();
     }
   }
 
@@ -160,16 +160,15 @@ contract ForwardingEOAWill is GenericWill {
    * @return bool true if eligible for activation, false otherwise
    */
   function _checkActiveWill() private view returns (bool) {
-    uint256 triggerUint = 2592000;
     uint256 lackOfOutgoingTxRange = getActivationTrigger();
-    if (_lastTimestamp + (lackOfOutgoingTxRange * triggerUint) > block.timestamp) {
+    if (_lastTimestamp + lackOfOutgoingTxRange > block.timestamp) {
       return false;
     }
     return true;
   }
 
   /**
-   * @dev set ditribution list
+   * @dev set distribution list
    * @param owner_ address
    * @param distributions_  distributions list
    * @return numberOfBeneficiaries number of beneficiaries
@@ -273,7 +272,7 @@ contract ForwardingEOAWill is GenericWill {
    */
   function _transferErc20ToBeneficiary(address erc20Address_, address from_, address to_, uint256 amount_) private {
     (bool success, bytes memory data) = erc20Address_.call(abi.encodeWithSignature("transferFrom(address,address,uint256)", from_, to_, amount_));
-    if (!success || (data.length != 0 && !abi.decode(data, (bool)))) revert SafeTransfromFailed(erc20Address_, from_, to_);
+    if (!success || (data.length != 0 && !abi.decode(data, (bool)))) revert SafeTransferFromFailed(erc20Address_, from_, to_);
   }
 
   /**

@@ -116,7 +116,7 @@ contract ForwardingEOAWillRouter is WillRouter, EOAWillFactory, ReentrancyGuard 
   ) external nonReentrant {
     address willAddress = _checkWillExisted(willId_);
 
-    //Check ditribution length
+    //Check distribution length
     if (mainConfig_.distributions.length != mainConfig_.nickNames.length || mainConfig_.distributions.length == 0) revert DistributionsInvalid();
 
     //Check invalid activation trigger
@@ -138,7 +138,7 @@ contract ForwardingEOAWillRouter is WillRouter, EOAWillFactory, ReentrancyGuard 
    * @dev Set distributions[] will, call this function if only modify beneficiaries[], minRequiredSignatures to save gas for user.
    * @param willId_ will id
    * @param nickNames_  nick name[]
-   * @param distributions_ ditributions[]
+   * @param distributions_ distributions[]
    */
   function setWillDistributions(uint256 willId_, string[] calldata nickNames_, ForwardingWillStruct.Distribution[] calldata distributions_) external {
     address willAddress = _checkWillExisted(willId_);
@@ -155,7 +155,7 @@ contract ForwardingEOAWillRouter is WillRouter, EOAWillFactory, ReentrancyGuard 
   }
 
   /**
-   * @dev set activation trigger time, call this function if only mofify lackOfOutgoingTxRange to save gas for user.
+   * @dev set activation trigger time, call this function if only modify lackOfOutgoingTxRange to save gas for user.
    * @param willId_ will id
    * @param lackOfOutgoingTxRange_ lackOfOutgoingTxRange
    */

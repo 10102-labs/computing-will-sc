@@ -7,14 +7,23 @@ import {ISafeWallet} from "./interfaces/ISafeWallet.sol";
 
 contract SafeGuard is ITransactionGuard {
   /*Error */
-  error SafeGuardIntialized();
+  error SafeGuardInitialized();
+  error OnlyModifyLastTimeStamp();
 
   /*State */
   uint256 public lastTimestampTxs;
+  address public safeWallet;
 
   /*Modifier */
-  modifier intialized() {
-    if (lastTimestampTxs != 0) revert SafeGuardIntialized();
+  modifier initialized() {
+    if (lastTimestampTxs != 0) revert SafeGuardInitialized();
+    _;
+  }
+
+  modifier onlyModifyLastTimeStamp() {
+    if (msg.sender != safeWallet) {
+      revert OnlyModifyLastTimeStamp();
+    }
     _;
   }
 
@@ -22,8 +31,9 @@ contract SafeGuard is ITransactionGuard {
   /**
    * @dev initialize last timestamp transaction
    */
-  function initialize() external intialized {
+  function initialize(address _safeWallet) external initialized {
     lastTimestampTxs = block.timestamp;
+    safeWallet = _safeWallet;
   }
 
   /**
@@ -36,7 +46,7 @@ contract SafeGuard is ITransactionGuard {
    * @param baseGas baseGas
    * @param gasPrice gasPrice
    * @param gasToken gasToken
-   * @param refundReceiver refybdReceiver
+   * @param refundReceiver refundReceiver
    * @param signatures signatures
    * @param msgSender sender
    */
@@ -52,18 +62,30 @@ contract SafeGuard is ITransactionGuard {
     address payable refundReceiver,
     bytes memory signatures,
     address msgSender
-  ) external {}
+  ) external {
+    if (operation == Enum.Operation.Call) {
+      if (msg.sender == safeWallet) {
+        lastTimestampTxs = block.timestamp;
+      }
+    } else if (operation == Enum.Operation.DelegateCall) {
+      address[] memory owners = ISafeWallet(safeWallet).getOwners();
+      for (uint256 i = 0; i < owners.length; ) {
+        if (msg.sender == owners[i]) {
+          lastTimestampTxs = block.timestamp;
+        }
+        unchecked {
+          i++;
+        }
+      }
+    }
+  }
 
   /**
    * @dev check after execution
    * @param hash safe transaction hash
    * @param success true is success false otherwise
    */
-  function checkAfterExecution(bytes32 hash, bool success) external {
-    if (success) {
-      lastTimestampTxs = block.timestamp;
-    }
-  }
+  function checkAfterExecution(bytes32 hash, bool success) external {}
 
   /**
    * @dev support interface

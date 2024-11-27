@@ -13,7 +13,7 @@ import {Enum} from "../libraries/Enum.sol";
 contract InheritanceWill is GenericWill {
   error BeneficiaryInvalid();
   error NotBeneficiary();
-  error NotEnoughContitionalActive();
+  error NotEnoughConditionalActive();
   error ExecTransactionFromModuleFailed();
 
   using EnumerableSet for EnumerableSet.AddressSet;
@@ -78,7 +78,7 @@ contract InheritanceWill is GenericWill {
    * @param sender_  sender address
    * @param beneficiaries_ beneficiaries list
    * @param minRequiredSigs_ minRequiredSignatures
-   * @return numberOfBeneficiaries numberOfBeneficiares
+   * @return numberOfBeneficiaries numberOfBeneficiaries
    */
   function setWillBeneficiaries(
     address sender_,
@@ -112,12 +112,12 @@ contract InheritanceWill is GenericWill {
   function activeWill(address guardAddress_) external onlyRouter isActiveWill returns (address[] memory newSigners, uint256 newThreshold) {
     //Active will
     if (_checkActiveWill(guardAddress_)) {
-      address[] memory benficiariesList = _beneficiariesSet.values();
+      address[] memory beneficiariesList = _beneficiariesSet.values();
       _setWillToInactive();
       _clearBeneficiaries();
-      (newSigners, newThreshold) = _addOwnerWithThreshold(benficiariesList);
+      (newSigners, newThreshold) = _addOwnerWithThreshold(beneficiariesList);
     } else {
-      revert NotEnoughContitionalActive();
+      revert NotEnoughConditionalActive();
     }
   }
 
@@ -130,8 +130,7 @@ contract InheritanceWill is GenericWill {
   function _checkActiveWill(address guardAddress_) private view returns (bool) {
     uint256 lastTimestamp = ISafeGuard(guardAddress_).getLastTimestampTxs();
     uint256 lackOfOutgoingTxRange = uint256(getActivationTrigger());
-    uint256 triggerUint = 2592000; // mainnet
-    if (lastTimestamp + (lackOfOutgoingTxRange * triggerUint) > block.timestamp) {
+    if (lastTimestamp + lackOfOutgoingTxRange > block.timestamp) {
       return false;
     }
     return true;
@@ -163,7 +162,7 @@ contract InheritanceWill is GenericWill {
   }
 
   /**
-   * @dev Clear benecifiaries list of will
+   * @dev Clear beneficiaries list of will
    */
   function _clearBeneficiaries() private {
     uint256 length = _beneficiariesSet.length();
@@ -179,11 +178,11 @@ contract InheritanceWill is GenericWill {
    * @dev Add beneficiaries and set threshold in safe wallet
    * @param newSigners, newThreshold
    */
-  function _addOwnerWithThreshold(address[] memory beneficiries_) private returns (address[] memory newSigners, uint256 newThreshold) {
+  function _addOwnerWithThreshold(address[] memory beneficiaries_) private returns (address[] memory newSigners, uint256 newThreshold) {
     address owner = getWillOwner();
     uint256 threshold = ISafeWallet(owner).getThreshold();
-    for (uint256 i = 0; i < beneficiries_.length; ) {
-      bytes memory addOwnerData = abi.encodeWithSignature("addOwnerWithThreshold(address,uint256)", beneficiries_[i], threshold);
+    for (uint256 i = 0; i < beneficiaries_.length; ) {
+      bytes memory addOwnerData = abi.encodeWithSignature("addOwnerWithThreshold(address,uint256)", beneficiaries_[i], threshold);
       unchecked {
         ++i;
       }
