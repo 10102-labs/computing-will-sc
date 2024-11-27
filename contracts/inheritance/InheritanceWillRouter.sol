@@ -112,7 +112,7 @@ contract InheritanceWillRouter is WillRouter, WillFactory, ReentrancyGuard {
     uint256 numberOfBeneficiaries = IInheritanceWill(willAddress).initialize(newWillId, safeWallet, mainConfig_.beneficiaries, extraConfig_);
 
     //Initialize safeguard
-    ISafeGuard(guardAddress).initialize();
+    ISafeGuard(guardAddress).initialize(safeWallet);
 
     //Check min require signatures
     if (extraConfig_.minRequiredSignatures == 0 || extraConfig_.minRequiredSignatures > numberOfBeneficiaries) revert MinRequiredSignaturesInvalid();
@@ -194,7 +194,7 @@ contract InheritanceWillRouter is WillRouter, WillFactory, ReentrancyGuard {
   }
 
   /**
-   * @dev Set lackOfOutgoingTxRange will, call this function if only mofify lackOfOutgoingTxRange to save gas for user.
+   * @dev Set lackOfOutgoingTxRange will, call this function if only modify lackOfOutgoingTxRange to save gas for user.
    * @param willId_ will id
    * @param lackOfOutgoingTxRange_ lackOfOutgoingTxRange
    */
@@ -223,7 +223,7 @@ contract InheritanceWillRouter is WillRouter, WillFactory, ReentrancyGuard {
   }
 
   /**
-   * @dev Active will, call this function when the safewallet is eligible for activation.
+   * @dev Active will, call this function when the safeWallet is eligible for activation.
    * @param willId_ will id
    */
   function activeWill(uint256 willId_) external nonReentrant {
@@ -268,7 +268,7 @@ contract InheritanceWillRouter is WillRouter, WillFactory, ReentrancyGuard {
   }
 
   /**
-   * @dev Check whether signer is signer of safewallet.
+   * @dev Check whether signer is signer of safeWallet.
    * @param safeWallet_  safe wallet address
    * @param signer_ signer address
    */

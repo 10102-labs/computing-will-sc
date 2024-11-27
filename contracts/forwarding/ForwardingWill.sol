@@ -20,7 +20,7 @@ contract ForwardingWill is GenericWill {
   error AssetInvalid();
   error PercentInvalid();
   error TotalPercentInvalid();
-  error NotEnoughContitionalActive();
+  error NotEnoughConditionalActive();
   error ExecTransactionFromModuleFailed();
   error BeneficiariesIsClaimed();
 
@@ -50,10 +50,10 @@ contract ForwardingWill is GenericWill {
 
   /* Main function */
   /**
-   * @dev Intialize info will
+   * @dev Initialize info will
    * @param willId_ will id
    * @param owner_ owner of will
-   * @param distributions_ ditributions list
+   * @param distributions_ distributions list
    * @param config_ include lackOfOutgoingTxRange
    */
   function initialize(
@@ -72,7 +72,7 @@ contract ForwardingWill is GenericWill {
   /**
    * @dev set distributions[]
    * @param sender_  sender address
-   * @param distributions_ ditributions
+   * @param distributions_ distributions
    */
   function setWillDistributions(
     address sender_,
@@ -101,7 +101,7 @@ contract ForwardingWill is GenericWill {
       }
       assets = _transferAssetToBeneficiaries(assets_, isETH_);
     } else {
-      revert NotEnoughContitionalActive();
+      revert NotEnoughConditionalActive();
     }
   }
 
@@ -115,15 +115,14 @@ contract ForwardingWill is GenericWill {
   function _checkActiveWill(address guardAddress_) private view returns (bool) {
     uint256 lastTimestamp = ISafeGuard(guardAddress_).getLastTimestampTxs();
     uint256 lackOfOutgoingTxRange = uint256(getActivationTrigger());
-    uint256 triggerUint = 2592000;
-    if (lastTimestamp + (lackOfOutgoingTxRange * triggerUint) > block.timestamp) {
+    if (lastTimestamp + lackOfOutgoingTxRange > block.timestamp) {
       return false;
     }
     return true;
   }
 
   /**
-   * @dev set ditribution list
+   * @dev set distribution list
    * @param distributions_  distributions list
    * @return numberOfBeneficiaries number of beneficiaries
    */
@@ -132,9 +131,8 @@ contract ForwardingWill is GenericWill {
     ForwardingWillStruct.Distribution[] calldata distributions_
   ) internal returns (uint256 numberOfBeneficiaries) {
     uint256 totalPercent = 0;
-    address[] memory signers = ISafeWallet(owner_).getOwners();
     for (uint256 i = 0; i < distributions_.length; ) {
-      _checkDistribution(signers, owner_, distributions_[i]);
+      _checkDistribution(owner_, distributions_[i]);
       _beneficiariesSet.add(distributions_[i].user);
       _distributions[distributions_[i].user] = distributions_[i].percent;
       totalPercent += distributions_[i].percent;
@@ -163,19 +161,12 @@ contract ForwardingWill is GenericWill {
 
   /**
    * @dev check distribution
-   * @param signers_ signer list
    * @param owner_ safe wallet address
    * @param distribution_ distribution
    */
-  function _checkDistribution(address[] memory signers_, address owner_, ForwardingWillStruct.Distribution calldata distribution_) private pure {
+  function _checkDistribution(address owner_, ForwardingWillStruct.Distribution calldata distribution_) private pure {
     if (distribution_.percent == 0 || distribution_.percent > 100) revert DistributionAssetInvalid();
     if (distribution_.user == address(0) || distribution_.user == owner_) revert DistributionAssetInvalid();
-    for (uint256 j = 0; j < signers_.length; ) {
-      if (distribution_.user == signers_[j]) revert DistributionUserInvalid();
-      unchecked {
-        j++;
-      }
-    }
   }
 
   /**

@@ -105,7 +105,7 @@ contract ForwardingWillRouter is WillRouter, WillFactory, ReentrancyGuard {
     uint256 numberOfBeneficiaries = IForwardingWill(willAddress).initialize(newWillId, safeWallet, mainConfig_.distributions, extraConfig_);
 
     // Initialize guard
-    ISafeGuard(guardAddress).initialize();
+    ISafeGuard(guardAddress).initialize(safeWallet);
 
     // Check beneficiaries limit
     if (!_checkNumBeneficiariesLimit(numberOfBeneficiaries)) revert NumBeneficiariesInvalid();
@@ -128,7 +128,7 @@ contract ForwardingWillRouter is WillRouter, WillFactory, ReentrancyGuard {
   ) external onlySafeWallet(willId_) nonReentrant {
     address willAddress = _checkWillExisted(willId_);
 
-    //Check ditribution length
+    //Check distribution length
     if (mainConfig_.distributions.length != mainConfig_.nickNames.length || mainConfig_.distributions.length == 0) revert DistributionsInvalid();
 
     //Check invalid activation trigger
@@ -150,7 +150,7 @@ contract ForwardingWillRouter is WillRouter, WillFactory, ReentrancyGuard {
    * @dev Set distributions[] will, call this function if only modify beneficiaries[], minRequiredSignatures to save gas for user.
    * @param willId_ will id
    * @param nickNames_  nick name[]
-   * @param distributions_ ditributions[]
+   * @param distributions_ distributions[]
    */
   function setWillDistributions(
     uint256 willId_,
@@ -171,7 +171,7 @@ contract ForwardingWillRouter is WillRouter, WillFactory, ReentrancyGuard {
   }
 
   /**
-   * @dev set activation trigger time, call this function if only mofify lackOfOutgoingTxRange to save gas for user.
+   * @dev set activation trigger time, call this function if only modify lackOfOutgoingTxRange to save gas for user.
    * @param willId_ will id
    * @param lackOfOutgoingTxRange_ lackOfOutgoingTxRange
    */
@@ -200,7 +200,7 @@ contract ForwardingWillRouter is WillRouter, WillFactory, ReentrancyGuard {
   }
 
   /**
-   * @dev Active will, call this function when the safewallet is eligible for activation.
+   * @dev Active will, call this function when the safeWallet is eligible for activation.
    * @param willId_ will id
    */
   function activeWill(uint256 willId_, address[] calldata assets_, bool isETH_) external nonReentrant {
@@ -246,7 +246,7 @@ contract ForwardingWillRouter is WillRouter, WillFactory, ReentrancyGuard {
   }
 
   /**
-   * @dev Check whether signer is signer of safewallet.
+   * @dev Check whether signer is signer of safeWallet.
    * @param safeWallet_  safe wallet address
    * @param signer_ signer address
    */
