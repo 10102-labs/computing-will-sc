@@ -63,20 +63,8 @@ contract SafeGuard is ITransactionGuard {
     bytes memory signatures,
     address msgSender
   ) external {
-    if (operation == Enum.Operation.Call) {
-      if (msg.sender == safeWallet) {
-        lastTimestampTxs = block.timestamp;
-      }
-    } else if (operation == Enum.Operation.DelegateCall) {
-      address[] memory owners = ISafeWallet(safeWallet).getOwners();
-      for (uint256 i = 0; i < owners.length; ) {
-        if (msg.sender == owners[i]) {
-          lastTimestampTxs = block.timestamp;
-        }
-        unchecked {
-          i++;
-        }
-      }
+    if (msg.sender == safeWallet) {
+      lastTimestampTxs = block.timestamp;
     }
   }
 
