@@ -8,7 +8,6 @@ import {ISafeWallet} from "./interfaces/ISafeWallet.sol";
 contract SafeGuard is ITransactionGuard {
   /*Error */
   error SafeGuardInitialized();
-  error OnlyModifyLastTimeStamp();
 
   /*State */
   uint256 public lastTimestampTxs;
@@ -17,13 +16,6 @@ contract SafeGuard is ITransactionGuard {
   /*Modifier */
   modifier initialized() {
     if (lastTimestampTxs != 0) revert SafeGuardInitialized();
-    _;
-  }
-
-  modifier onlyModifyLastTimeStamp() {
-    if (msg.sender != safeWallet) {
-      revert OnlyModifyLastTimeStamp();
-    }
     _;
   }
 
