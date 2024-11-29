@@ -2,13 +2,13 @@
 // OpenZeppelin Contracts v5.x
 pragma solidity 0.8.20;
 
-import "@safe-global/safe-smart-account/contracts/base/GuardManager.sol";
-import {ISafeWallet} from "./interfaces/ISafeWallet.sol";
+import {Enum} from "@safe-global/safe-smart-account/contracts/libraries/Enum.sol";
+import {ITransactionGuard} from "@safe-global/safe-smart-account/contracts/base/GuardManager.sol";
 
 contract SafeGuard is ITransactionGuard {
   /*Error */
+  error OnlySafeWallet();
   error SafeGuardInitialized();
-  error OnlyModifyLastTimeStamp();
 
   /*State */
   uint256 public lastTimestampTxs;
@@ -20,9 +20,9 @@ contract SafeGuard is ITransactionGuard {
     _;
   }
 
-  modifier onlyModifyLastTimeStamp() {
+  modifier onlySafeWallet() {
     if (msg.sender != safeWallet) {
-      revert OnlyModifyLastTimeStamp();
+      revert OnlySafeWallet();
     }
     _;
   }
@@ -62,10 +62,8 @@ contract SafeGuard is ITransactionGuard {
     address payable refundReceiver,
     bytes memory signatures,
     address msgSender
-  ) external {
-    if (msg.sender == safeWallet) {
-      lastTimestampTxs = block.timestamp;
-    }
+  ) external onlySafeWallet {
+    lastTimestampTxs = block.timestamp;
   }
 
   /**
@@ -73,7 +71,9 @@ contract SafeGuard is ITransactionGuard {
    * @param hash safe transaction hash
    * @param success true is success false otherwise
    */
-  function checkAfterExecution(bytes32 hash, bool success) external {}
+  function checkAfterExecution(bytes32 hash, bool success) external onlySafeWallet {
+    lastTimestampTxs = block.timestamp;
+  }
 
   /**
    * @dev support interface

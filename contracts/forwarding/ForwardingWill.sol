@@ -7,8 +7,8 @@ import {GenericWill} from "../common/GenericWill.sol";
 import {IERC20} from "../interfaces/IERC20.sol";
 import {ISafeGuard} from "../interfaces/ISafeGuard.sol";
 import {ISafeWallet} from "../interfaces/ISafeWallet.sol";
+import {Enum} from "@safe-global/safe-smart-account/contracts/libraries/Enum.sol";
 import {ForwardingWillStruct} from "../libraries/ForwardingWillStruct.sol";
-import {Enum} from "../libraries/Enum.sol";
 
 contract ForwardingWill is GenericWill {
   using EnumerableSet for EnumerableSet.AddressSet;
@@ -164,9 +164,9 @@ contract ForwardingWill is GenericWill {
    * @param owner_ safe wallet address
    * @param distribution_ distribution
    */
-  function _checkDistribution(address owner_, ForwardingWillStruct.Distribution calldata distribution_) private pure {
+  function _checkDistribution(address owner_, ForwardingWillStruct.Distribution calldata distribution_) private view {
     if (distribution_.percent == 0 || distribution_.percent > 100) revert DistributionAssetInvalid();
-    if (distribution_.user == address(0) || distribution_.user == owner_) revert DistributionAssetInvalid();
+    if (distribution_.user == address(0) || distribution_.user == owner_ || _isContract(distribution_.user)) revert DistributionAssetInvalid();
   }
 
   /**
@@ -237,5 +237,18 @@ contract ForwardingWill is GenericWill {
   function _transferEthToBeneficiary(address from_, address to_, uint256 amount) private {
     bool transferEthSuccess = ISafeWallet(from_).execTransactionFromModule(to_, amount, "0x", Enum.Operation.Call);
     if (!transferEthSuccess) revert ExecTransactionFromModuleFailed();
+  }
+
+  /**
+   * @dev check whether addr is a smart contract address or eoa address
+   * @param addr  the address need to check
+   *
+   */
+  function _isContract(address addr) private view returns (bool) {
+    uint256 size;
+    assembly ("memory-safe") {
+      size := extcodesize(addr)
+    }
+    return size > 0;
   }
 }

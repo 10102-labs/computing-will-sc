@@ -2,8 +2,6 @@
 // OpenZeppelin Contracts v5.x
 pragma solidity 0.8.20;
 
-import {IERC20Whitelist} from "../interfaces/IERC20Whitelist.sol";
-
 contract GenericWill {
   /* Error */
   error OnlyRouter();

@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {GenericWill} from "../common/GenericWill.sol";
 import {IERC20} from "../interfaces/IERC20.sol";
 import {ForwardingWillStruct} from "../libraries/ForwardingWillStruct.sol";
-import {Enum} from "../libraries/Enum.sol";
 
 contract ForwardingEOAWill is GenericWill {
   using EnumerableSet for EnumerableSet.AddressSet;
@@ -212,9 +211,9 @@ contract ForwardingEOAWill is GenericWill {
    * @param owner_ owner will
    * @param distribution_ distribution
    */
-  function _checkDistribution(address owner_, ForwardingWillStruct.Distribution calldata distribution_) private pure {
+  function _checkDistribution(address owner_, ForwardingWillStruct.Distribution calldata distribution_) private view {
     if (distribution_.percent == 0 || distribution_.percent > 100) revert DistributionAssetInvalid();
-    if (distribution_.user == address(0) || distribution_.user == owner_) revert DistributionAssetInvalid();
+    if (distribution_.user == address(0) || distribution_.user == owner_ || _isContract(distribution_.user)) revert DistributionAssetInvalid();
   }
 
   /**
@@ -281,5 +280,17 @@ contract ForwardingEOAWill is GenericWill {
    */
   function _transferEthToBeneficiary(address to_, uint256 amount_) private {
     payable(to_).transfer(amount_);
+  }
+
+  /**
+   * @dev check whether addr is a smart contract address or eoa address
+   * @param addr  the address need to check
+   */
+  function _isContract(address addr) private view returns (bool) {
+    uint256 size;
+    assembly ("memory-safe") {
+      size := extcodesize(addr)
+    }
+    return size > 0;
   }
 }
