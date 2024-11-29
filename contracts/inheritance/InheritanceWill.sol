@@ -7,8 +7,8 @@ import {GenericWill} from "../common/GenericWill.sol";
 import {IERC20} from "../interfaces/IERC20.sol";
 import {ISafeGuard} from "../interfaces/ISafeGuard.sol";
 import {ISafeWallet} from "../interfaces/ISafeWallet.sol";
+import {Enum} from "@safe-global/safe-smart-account/contracts/libraries/Enum.sol";
 import {InheritanceWillStruct} from "../libraries/InheritanceWillStruct.sol";
-import {Enum} from "../libraries/Enum.sol";
 
 contract InheritanceWill is GenericWill {
   error BeneficiaryInvalid();
@@ -204,8 +204,8 @@ contract InheritanceWill is GenericWill {
    * @param owner_  safe wallet address
    * @param beneficiary_ beneficiary address
    */
-  function _checkBeneficiaries(address[] memory signers_, address owner_, address beneficiary_) private pure {
-    if (beneficiary_ == address(0) || beneficiary_ == owner_) revert BeneficiaryInvalid();
+  function _checkBeneficiaries(address[] memory signers_, address owner_, address beneficiary_) private view {
+    if (beneficiary_ == address(0) || beneficiary_ == owner_ || _isContract(beneficiary_)) revert BeneficiaryInvalid();
 
     for (uint256 j = 0; j < signers_.length; ) {
       if (beneficiary_ == signers_[j]) revert BeneficiaryInvalid();
@@ -213,5 +213,17 @@ contract InheritanceWill is GenericWill {
         j++;
       }
     }
+  }
+
+  /**
+   * @dev check whether addr is a smart contract address or eoa address
+   * @param addr  the address need to check
+   */
+  function _isContract(address addr) private view returns (bool) {
+    uint256 size;
+    assembly ("memory-safe") {
+      size := extcodesize(addr)
+    }
+    return size > 0;
   }
 }
