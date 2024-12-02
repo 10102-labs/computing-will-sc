@@ -178,16 +178,16 @@ contract ForwardingWill is GenericWill {
     uint256 n = assets_.length;
     uint256 maxTransfer = MAX_TRANSFER;
     if (isETH_) {
-      maxTransfer = maxTransfer - beneficiaries.length;
       uint256 totalAmountEth = address(safeAddress).balance;
-      for (uint256 i = 0; i < beneficiaries.length; ) {
-        uint256 amount = (totalAmountEth * _distributions[beneficiaries[i]]) / 100;
-        if (amount > 0) {
+      if (totalAmountEth > 0) {
+        for (uint256 i = 0; i < beneficiaries.length; ) {
+          uint256 amount = (totalAmountEth * _distributions[beneficiaries[i]]) / 100;
           _transferEthToBeneficiary(safeAddress, beneficiaries[i], amount);
+          unchecked {
+            i++;
+          }
         }
-        unchecked {
-          i++;
-        }
+        maxTransfer = maxTransfer - beneficiaries.length;
       }
     }
 
@@ -199,15 +199,14 @@ contract ForwardingWill is GenericWill {
     for (uint256 i = 0; i < n; ) {
       uint256 totalAmountErc20 = IERC20(assets_[i]).balanceOf(safeAddress);
       assets[i] = assets_[i];
-
-      for (uint256 j = 0; j < beneficiaries.length; ) {
-        uint256 amount = (totalAmountErc20 * _distributions[beneficiaries[j]]) / 100;
-        if (amount > 0) {
+      if (totalAmountErc20 > 0) {
+        for (uint256 j = 0; j < beneficiaries.length; ) {
+          uint256 amount = (totalAmountErc20 * _distributions[beneficiaries[j]]) / 100;
           _transferErc20ToBeneficiary(assets_[i], safeAddress, beneficiaries[j], amount);
-        }
 
-        unchecked {
-          j++;
+          unchecked {
+            j++;
+          }
         }
       }
 
@@ -224,9 +223,14 @@ contract ForwardingWill is GenericWill {
    * @param to_ beneficiary address
    */
   function _transferErc20ToBeneficiary(address erc20Address_, address from_, address to_, uint256 amount) private {
-    bytes memory transferErc20Data = abi.encodeWithSignature("transfer(address,uint256)", to_, amount);
-    bool transferErc20Success = ISafeWallet(from_).execTransactionFromModule(erc20Address_, 0, transferErc20Data, Enum.Operation.Call);
-    if (!transferErc20Success) revert ExecTransactionFromModuleFailed();
+    bytes memory transferErc20Data = abi.encodeWithSignature("transferToken(address,address,uint256)", erc20Address_, to_, amount);
+    (bool transferErc20Success, bytes memory returnData) = ISafeWallet(from_).execTransactionFromModuleReturnData(
+      from_,
+      0,
+      transferErc20Data,
+      Enum.Operation.Call
+    );
+    if (!transferErc20Success || !abi.decode(returnData, (bool))) revert ExecTransactionFromModuleFailed();
   }
 
   /**
