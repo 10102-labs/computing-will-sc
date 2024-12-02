@@ -15,22 +15,10 @@ contract EOAWillFactory {
   mapping(address => uint256) public nonceByUsers;
 
   /* Internal function */
-  /**
-   * @dev get next address create
-   * @param bytecode_  byte code
-   * @param sender_  sender
-   */
-  function _getNextAddress(bytes memory bytecode_, address sender_) internal view returns (address) {
-    uint256 nextNonce = nonceByUsers[sender_] + 1;
-    bytes32 salt = keccak256(abi.encodePacked(sender_, nextNonce));
-    bytes32 bytecodeHash = keccak256(bytecode_);
-    return Create2.computeAddress(salt, bytecodeHash);
-  }
 
   /**
    * @dev create will
    * @param willBytecode_  will byte code
-
    * @param sender_ sender
    * @return willId
    * @return willAddress
@@ -39,7 +27,7 @@ contract EOAWillFactory {
   function _createWill(bytes memory willBytecode_, address sender_) internal returns (uint256, address) {
     _willId += 1;
     nonceByUsers[sender_] += 1;
-    bytes32 salt = keccak256(abi.encodePacked(sender_, nonceByUsers[sender_]));
+    bytes32 salt = keccak256(abi.encodePacked(sender_, nonceByUsers[sender_], block.timestamp));
     address willAddress = Create2.deploy(0, salt, willBytecode_);
     willAddresses[_willId] = willAddress;
     isCreateWill[sender_] = true;

@@ -225,16 +225,16 @@ contract ForwardingEOAWill is GenericWill {
     uint256 n = assets_.length;
     uint256 maxTransfer = MAX_TRANSFER;
     if (isETH_) {
-      maxTransfer = maxTransfer - beneficiaries.length;
       uint256 totalAmountEth = address(this).balance;
-      for (uint256 i = 0; i < beneficiaries.length; ) {
-        uint256 amount = (totalAmountEth * _distributions[beneficiaries[i]]) / 100;
-        if (amount > 0) {
+      if (totalAmountEth > 0) {
+        for (uint256 i = 0; i < beneficiaries.length; ) {
+          uint256 amount = (totalAmountEth * _distributions[beneficiaries[i]]) / 100;
           _transferEthToBeneficiary(beneficiaries[i], amount);
+          unchecked {
+            i++;
+          }
         }
-        unchecked {
-          i++;
-        }
+        maxTransfer = maxTransfer - beneficiaries.length;
       }
     }
 
@@ -248,15 +248,16 @@ contract ForwardingEOAWill is GenericWill {
       uint256 balanceAmountErc20 = IERC20(assets_[i]).balanceOf(ownerAddress);
       uint256 totalAmountErc20 = balanceAmountErc20 > allowanceAmountErc20 ? allowanceAmountErc20 : balanceAmountErc20;
       assets[i] = assets_[i];
-      for (uint256 j = 0; j < beneficiaries.length; ) {
-        uint256 amount = (totalAmountErc20 * _distributions[beneficiaries[j]]) / 100;
-        if (amount > 0) {
+      if (totalAmountErc20 > 0) {
+        for (uint256 j = 0; j < beneficiaries.length; ) {
+          uint256 amount = (totalAmountErc20 * _distributions[beneficiaries[j]]) / 100;
           _transferErc20ToBeneficiary(assets_[i], ownerAddress, beneficiaries[j], amount);
-        }
-        unchecked {
-          j++;
+          unchecked {
+            j++;
+          }
         }
       }
+
       unchecked {
         i++;
       }
