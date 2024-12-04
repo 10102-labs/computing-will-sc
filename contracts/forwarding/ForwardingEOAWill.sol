@@ -2,13 +2,15 @@
 // OpenZeppelin Contracts v5.x
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {GenericWill} from "../common/GenericWill.sol";
-import {IERC20} from "../interfaces/IERC20.sol";
 import {ForwardingWillStruct} from "../libraries/ForwardingWillStruct.sol";
 
 contract ForwardingEOAWill is GenericWill {
   using EnumerableSet for EnumerableSet.AddressSet;
+  using SafeERC20 for IERC20;
 
   /* Error */
   error NotBeneficiary();
@@ -271,8 +273,7 @@ contract ForwardingEOAWill is GenericWill {
    * @param to_ beneficiary address
    */
   function _transferErc20ToBeneficiary(address erc20Address_, address from_, address to_, uint256 amount_) private {
-    (bool success, bytes memory data) = erc20Address_.call(abi.encodeWithSignature("transferFrom(address,address,uint256)", from_, to_, amount_));
-    if (!success || (data.length != 0 && !abi.decode(data, (bool)))) revert SafeTransferFromFailed(erc20Address_, from_, to_);
+    IERC20(erc20Address_).safeTransferFrom(from_, to_, amount_);
   }
 
   /**

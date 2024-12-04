@@ -67,7 +67,7 @@ contract SafeGuard is ITransactionGuard {
       gasPrice,
       gasToken,
       refundReceiver,
-      nonce++
+      nonce
     );
     ISafeWallet(safeWallet).checkSignatures(dataHash, signatures);
     lastTimestampTxs = block.timestamp;

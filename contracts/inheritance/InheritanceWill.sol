@@ -4,7 +4,6 @@ pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {GenericWill} from "../common/GenericWill.sol";
-import {IERC20} from "../interfaces/IERC20.sol";
 import {ISafeGuard} from "../interfaces/ISafeGuard.sol";
 import {ISafeWallet} from "../interfaces/ISafeWallet.sol";
 import {Enum} from "@safe-global/safe-smart-account/contracts/libraries/Enum.sol";
