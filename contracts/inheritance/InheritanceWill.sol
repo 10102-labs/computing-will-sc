@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {GenericWill} from "../common/GenericWill.sol";
 import {ISafeGuard} from "../interfaces/ISafeGuard.sol";
 import {ISafeWallet} from "../interfaces/ISafeWallet.sol";
-import {Enum} from "@safe-global/safe-smart-account/contracts/libraries/Enum.sol";
+import {Enum} from "@safe-global/safe-smart-account/contracts/common/Enum.sol";
 import {InheritanceWillStruct} from "../libraries/InheritanceWillStruct.sol";
 
 contract InheritanceWill is GenericWill {

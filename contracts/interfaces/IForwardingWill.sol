@@ -18,7 +18,7 @@ interface IForwardingWill {
     ForwardingWillStruct.Distribution[] calldata distributions_
   ) external returns (uint256 numberOfBeneficiaries);
 
-  function activeWill(address guardAddress_, address[] calldata assets_, bool isETH_) external returns (address[] memory assets);
+  function activeWill(address guardAddress_, address[] calldata assets_, bool isETH_) external;
 
   function checkActiveWill(address guardAddress_) external view returns (bool);
 }

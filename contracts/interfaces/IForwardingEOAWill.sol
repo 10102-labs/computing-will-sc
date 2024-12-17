@@ -18,7 +18,7 @@ interface IForwardingEOAWill {
     ForwardingWillStruct.Distribution[] calldata distributions_
   ) external returns (uint256 numberOfBeneficiaries);
   function activeAlive(address sender_) external;
-  function activeWill(address[] calldata assets_, bool isETH_) external returns (address[] memory assets);
+  function activeWill(address[] calldata assets_, bool isETH_) external;
   function deleteWill(address sender_) external;
   function withdraw(address sender_, uint256 amount_) external;
   function checkActiveWill() external view returns (bool);
