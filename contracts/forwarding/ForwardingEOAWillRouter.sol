@@ -47,7 +47,7 @@ contract ForwardingEOAWillRouter is WillRouter, EOAWillFactory, ReentrancyGuard 
   );
   event ForwardingEOAWillTriggerUpdated(uint256 willId, uint128 lackOfOutgoingTxRange, uint256 timestamp);
   event ForwardingEOAWillNameNoteUpdated(uint256 willId, string name, string note, uint256 timestamp);
-  event ForwardingEOAWillActivated(uint256 willId, address[] assetAddresses, bool isETH, uint256 timestamp);
+  event ForwardingEOAWillActivated(uint256 willId, uint256 timestamp);
   event ForwardingEOAWillActivedAlive(uint256 willId, uint256 timestamp);
   event ForwardingEOAWillDeleted(uint256 willId, uint256 timestamp);
   /* External function */
@@ -192,8 +192,8 @@ contract ForwardingEOAWillRouter is WillRouter, EOAWillFactory, ReentrancyGuard 
     if (isETH_ == false && assets_.length == 0) revert NumAssetsInvalid();
 
     //Active will
-    address[] memory assets = IForwardingEOAWill(willAddress).activeWill(assets_, isETH_);
-    emit ForwardingEOAWillActivated(willId_, assets, isETH_, block.timestamp);
+    IForwardingEOAWill(willAddress).activeWill(assets_, isETH_);
+    emit ForwardingEOAWillActivated(willId_, block.timestamp);
   }
 
   /**

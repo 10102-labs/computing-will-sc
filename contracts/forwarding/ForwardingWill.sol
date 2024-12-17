@@ -4,14 +4,16 @@ pragma solidity 0.8.20;
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Enum} from "@safe-global/safe-smart-account/contracts/common/Enum.sol";
 import {GenericWill} from "../common/GenericWill.sol";
 import {ISafeGuard} from "../interfaces/ISafeGuard.sol";
 import {ISafeWallet} from "../interfaces/ISafeWallet.sol";
-import {Enum} from "@safe-global/safe-smart-account/contracts/libraries/Enum.sol";
 import {ForwardingWillStruct} from "../libraries/ForwardingWillStruct.sol";
 
 contract ForwardingWill is GenericWill {
   using EnumerableSet for EnumerableSet.AddressSet;
+  using SafeERC20 for IERC20;
 
   /* Error */
   error NotBeneficiary();
@@ -93,13 +95,15 @@ contract ForwardingWill is GenericWill {
 
   /**
    * @param guardAddress_  guard address
+   * @param assets_ erc20 token list
+   * @param isETH_ is native token
    */
-  function activeWill(address guardAddress_, address[] calldata assets_, bool isETH_) external onlyRouter returns (address[] memory assets) {
+  function activeWill(address guardAddress_, address[] calldata assets_, bool isETH_) external onlyRouter {
     if (_checkActiveWill(guardAddress_)) {
       if (getIsActiveWill() == 1) {
         _setWillToInactive();
       }
-      assets = _transferAssetToBeneficiaries(assets_, isETH_);
+      _transferAssetToBeneficiaries(assets_, isETH_);
     } else {
       revert NotEnoughConditionalActive();
     }
@@ -172,44 +176,42 @@ contract ForwardingWill is GenericWill {
   /**
    * @dev transfer asset to beneficiaries
    */
-  function _transferAssetToBeneficiaries(address[] calldata assets_, bool isETH_) private returns (address[] memory assets) {
+  function _transferAssetToBeneficiaries(address[] calldata assets_, bool isETH_) private {
     address safeAddress = getWillOwner();
     address[] memory beneficiaries = _beneficiariesSet.values();
-    uint256 n = assets_.length;
-    uint256 maxTransfer = MAX_TRANSFER;
+    uint256 beneficiariesLength = beneficiaries.length;
+    uint256 transferredNum = 0;
     if (isETH_) {
       uint256 totalAmountEth = address(safeAddress).balance;
       if (totalAmountEth > 0) {
-        for (uint256 i = 0; i < beneficiaries.length; ) {
+        transferredNum += beneficiariesLength;
+        for (uint256 i = 0; i < beneficiariesLength - 1; ) {
           uint256 amount = (totalAmountEth * _distributions[beneficiaries[i]]) / 100;
           _transferEthToBeneficiary(safeAddress, beneficiaries[i], amount);
           unchecked {
             i++;
           }
         }
-        maxTransfer = maxTransfer - beneficiaries.length;
+        _transferEthToBeneficiary(safeAddress, beneficiaries[beneficiariesLength - 1], address(safeAddress).balance);
       }
     }
 
-    if (n * beneficiaries.length > maxTransfer) {
-      n = maxTransfer / beneficiaries.length;
-    }
-
-    assets = new address[](n);
-    for (uint256 i = 0; i < n; ) {
+    for (uint256 i = 0; i < assets_.length; ) {
       uint256 totalAmountErc20 = IERC20(assets_[i]).balanceOf(safeAddress);
-      assets[i] = assets_[i];
       if (totalAmountErc20 > 0) {
-        for (uint256 j = 0; j < beneficiaries.length; ) {
+        if (transferredNum + beneficiariesLength > MAX_TRANSFER) {
+          break;
+        }
+        transferredNum += beneficiariesLength;
+        for (uint256 j = 0; j < beneficiariesLength - 1; ) {
           uint256 amount = (totalAmountErc20 * _distributions[beneficiaries[j]]) / 100;
           _transferErc20ToBeneficiary(assets_[i], safeAddress, beneficiaries[j], amount);
-
           unchecked {
             j++;
           }
         }
+        _transferErc20ToBeneficiary(assets_[i], safeAddress, beneficiaries[beneficiariesLength - 1], IERC20(assets_[i]).balanceOf(safeAddress));
       }
-
       unchecked {
         i++;
       }
@@ -223,13 +225,14 @@ contract ForwardingWill is GenericWill {
    * @param to_ beneficiary address
    */
   function _transferErc20ToBeneficiary(address erc20Address_, address from_, address to_, uint256 amount) private {
-    bytes memory transferErc20Data = abi.encodeWithSignature("transferToken(address,address,uint256)", erc20Address_, to_, amount);
+    bytes memory transferErc20Data = abi.encodeWithSignature("transferFrom(address,address,uint256)", from_, to_, amount);
     (bool transferErc20Success, bytes memory returnData) = ISafeWallet(from_).execTransactionFromModuleReturnData(
-      from_,
+      erc20Address_,
       0,
       transferErc20Data,
       Enum.Operation.Call
     );
+
     if (!transferErc20Success || !abi.decode(returnData, (bool))) revert ExecTransactionFromModuleFailed();
   }
 

@@ -6,7 +6,7 @@ contract WillRouter {
   /* State variable */
   // guard storage slot in safe wallet
   bytes32 internal constant GUARD_STORAGE_SLOT = 0x4a204f620c8c5ccdca3fd54d003badd85ba500436a431f0cbda4f558c93c34c8;
-  uint256 public constant BENEFICIARIES_LIMIT = 10;
+  uint256 public constant BENEFICIARIES_LIMIT = 32;
 
   /* Internal function */
   /**

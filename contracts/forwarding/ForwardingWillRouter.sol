@@ -45,7 +45,7 @@ contract ForwardingWillRouter is WillRouter, WillFactory, ReentrancyGuard {
   event ForwardingWillDistributionUpdated(uint256 willId, string[] nickNames, ForwardingWillStruct.Distribution[] distributions, uint256 timestamp);
   event ForwardingWillTriggerUpdated(uint256 willId, uint128 lackOfOutgoingTxRange, uint256 timestamp);
   event ForwardingWillNameNoteUpdated(uint256 willId, string name, string note, uint256 timestamp);
-  event ForwardingWillActivated(uint256 willId, address[] assetAddresses, bool isETH, uint256 timestamp);
+  event ForwardingWillActivated(uint256 willId, uint256 timestamp);
 
   /* Modifier */
   modifier onlySafeWallet(uint256 willId_) {
@@ -209,8 +209,8 @@ contract ForwardingWillRouter is WillRouter, WillFactory, ReentrancyGuard {
     if (isETH_ == false && assets_.length == 0) revert NumAssetsInvalid();
 
     //Active will
-    address[] memory assets = IForwardingWill(willAddress).activeWill(guardAddress, assets_, isETH_);
-    emit ForwardingWillActivated(willId_, assets, isETH_, block.timestamp);
+    IForwardingWill(willAddress).activeWill(guardAddress, assets_, isETH_);
+    emit ForwardingWillActivated(willId_, block.timestamp);
   }
 
   /* Internal function */
