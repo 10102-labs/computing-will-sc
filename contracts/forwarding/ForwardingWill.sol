@@ -18,7 +18,7 @@ contract ForwardingWill is GenericWill {
   /* Error */
   error NotBeneficiary();
   error DistributionUserInvalid();
-  error DistributionAssetInvalid();
+  error DistributionPercentInvalid();
   error AssetInvalid();
   error PercentInvalid();
   error TotalPercentInvalid();
@@ -169,8 +169,8 @@ contract ForwardingWill is GenericWill {
    * @param distribution_ distribution
    */
   function _checkDistribution(address owner_, ForwardingWillStruct.Distribution calldata distribution_) private view {
-    if (distribution_.percent == 0 || distribution_.percent > 100) revert DistributionAssetInvalid();
-    if (distribution_.user == address(0) || distribution_.user == owner_ || _isContract(distribution_.user)) revert DistributionAssetInvalid();
+    if (distribution_.percent == 0 || distribution_.percent > 100) revert DistributionPercentInvalid();
+    if (distribution_.user == address(0) || distribution_.user == owner_ || _isContract(distribution_.user)) revert DistributionUserInvalid();
   }
 
   /**
@@ -225,7 +225,7 @@ contract ForwardingWill is GenericWill {
    * @param to_ beneficiary address
    */
   function _transferErc20ToBeneficiary(address erc20Address_, address from_, address to_, uint256 amount) private {
-    bytes memory transferErc20Data = abi.encodeWithSignature("transferFrom(address,address,uint256)", from_, to_, amount);
+    bytes memory transferErc20Data = abi.encodeWithSignature("transfer(address,uint256)", to_, amount);
     (bool transferErc20Success, bytes memory returnData) = ISafeWallet(from_).execTransactionFromModuleReturnData(
       erc20Address_,
       0,
@@ -233,7 +233,7 @@ contract ForwardingWill is GenericWill {
       Enum.Operation.Call
     );
 
-    if (!transferErc20Success || !abi.decode(returnData, (bool))) revert ExecTransactionFromModuleFailed();
+    if (!transferErc20Success || (returnData.length != 0 && !abi.decode(returnData, (bool)))) revert ExecTransactionFromModuleFailed();
   }
 
   /**

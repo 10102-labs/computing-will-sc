@@ -27,10 +27,8 @@ describe("Forwarding Router", function () {
   const FORWARDING_WILL_ROUTER = process.env.FORWARDING_WILL_ROUTER as string;
   const SAFE_WALLET = process.env.SAFE_WALLET_SUCCESSFULLY as string;
   const SAFE_WALLET_INVALID_PARAM = process.env.SAFE_WALLET_LENGTH_TWO_ARRAY as string;
-  const SAFE_WALLET_EXISTED_GUARD = process.env.SAFE_WALLET_NOT_EXISTED_GUARD as string;
+  const SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID = process.env.SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID as string;
   const SAFE_WALLET_SIGNER_NOT_OWNER = process.env.SAFE_WALLET_SIGNER_NOT_OWNER as string;
-  const SAFE_WALLET_EXISTED_GUARD_INVALID = process.env.SAFE_WALLET_EXISTED_GUARD_INVALID as string;
-  const SAFE_WALLET_EXISTED_MODULE_INVALID = process.env.SAFE_WALLET_EXISTED_MODULE_INVALID as string;
 
   const SIGNER1_PRIVATE_KEY = process.env.SIGNER1_PRIVATE_KEY as string;
   const SIGNER2_PRIVATE_KEY = process.env.SIGNER2_PRIVATE_KEY as string;
@@ -290,10 +288,10 @@ describe("Forwarding Router", function () {
       const signer = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
 
       //Execute
-      const tx = await createWill(SAFE_WALLET_EXISTED_GUARD, mainConfig, extraConfig, signer);
+      const tx = await createWill(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, mainConfig, extraConfig, signer);
 
       //Expect
-      expect(tx).to.be.revertedWithCustomError(forwardingWillRouter, "ExistedGuardInSafeWallet").withArgs(SAFE_WALLET_EXISTED_GUARD);
+      expect(tx).to.be.revertedWithCustomError(forwardingWillRouter, "ExistedGuardInSafeWallet").withArgs(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID);
     });
 
     it("Should revert if signer is not owner of safe wallet ", async function () {
@@ -581,11 +579,11 @@ describe("Forwarding Router", function () {
         lackOfOutgoingTxRange: 120,
       };
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
       const safeTransactionHash: string = await setWillConfig(protocolKit1, signer1.address, willId, mainConfig, extraConfig);
 
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
@@ -613,11 +611,11 @@ describe("Forwarding Router", function () {
         lackOfOutgoingTxRange: 120,
       };
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
       const safeTransactionHash: string = await setWillConfig(protocolKit1, signer1.address, willId, mainConfig, extraConfig);
 
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
@@ -970,10 +968,10 @@ describe("Forwarding Router", function () {
         { user: BENEFICIARY2, percent: 50 },
       ];
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
       const safeTransactionHash: string = await setWillDistributions(protocolKit1, signer1.address, willId, nicknames, distributions);
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
@@ -993,10 +991,10 @@ describe("Forwarding Router", function () {
         { user: BENEFICIARY2, percent: 50 },
       ];
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
       const safeTransactionHash: string = await setWillDistributions(protocolKit1, signer1.address, willId, nicknames, distributions);
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
@@ -1246,12 +1244,12 @@ describe("Forwarding Router", function () {
       const willId: bigint = BigInt(1);
       const lackOfOutgoingTxRange: bigint = BigInt(60);
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
 
       const safeTransactionHash: string = await setActivationTrigger(protocolKit1, signer1.address, willId, lackOfOutgoingTxRange);
 
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
@@ -1267,12 +1265,12 @@ describe("Forwarding Router", function () {
       const willId: bigint = BigInt(1);
       const lackOfOutgoingTxRange: bigint = BigInt(60);
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
 
       const safeTransactionHash: string = await setActivationTrigger(protocolKit1, signer1.address, willId, lackOfOutgoingTxRange);
 
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
@@ -1306,19 +1304,19 @@ describe("Forwarding Router", function () {
       // await expect(tx).to.emit(forwardingWillRouter, "ForwardingWillNameNoteUpdated").withArgs(willId, name, note, timestamp);
     });
 
-    it("Should revert if guard of safewallet is invalid", async function () {
+    it("Should revert if guard of safe wallet is invalid", async function () {
       const forwardingWillRouter: ForwardingWillRouter = (await getContract("ForwardingWillRouter", FORWARDING_WILL_ROUTER)) as ForwardingWillRouter;
       //Input
       const willId: bigint = BigInt(1);
       const name: string = "SNN name";
       const note: string = "SNN note";
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
 
       const safeTransactionHash: string = await setNameNote(protocolKit1, signer1.address, willId, name, note);
 
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
@@ -1335,12 +1333,12 @@ describe("Forwarding Router", function () {
       const name: string = "SNN name";
       const note: string = "SNN note";
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
 
       const safeTransactionHash: string = await setNameNote(protocolKit1, signer1.address, willId, name, note);
 
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
