@@ -16,8 +16,6 @@ contract SafeGuard is BaseGuard {
   error SenderIsInvalid();
   error ThresholdOfSafeWalletIsInvalid();
 
-  address internal constant SENTINEL_OWNERS = address(0x1);
-
   /*State */
   uint256 public lastTimestampTxs;
   ISafeWallet public safeWallet;
@@ -77,10 +75,6 @@ contract SafeGuard is BaseGuard {
         safeWallet.encodeTransactionData(to, value, data, operation, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, nonce)
       );
       uint256 requiredSignatures = safeWallet.getThreshold();
-
-      if (requiredSignatures == 0) {
-        revert ThresholdOfSafeWalletIsInvalid();
-      }
 
       checkNSignatures(msgSender, dataHash, data, signatures, requiredSignatures);
       lastTimestampTxs = block.timestamp;
