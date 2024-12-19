@@ -15,7 +15,7 @@ contract ForwardingEOAWill is GenericWill {
   /* Error */
   error NotBeneficiary();
   error DistributionUserInvalid();
-  error DistributionAssetInvalid();
+  error DistributionPercentInvalid();
   error AssetInvalid();
   error PercentInvalid();
   error TotalPercentInvalid();
@@ -214,8 +214,8 @@ contract ForwardingEOAWill is GenericWill {
    * @param distribution_ distribution
    */
   function _checkDistribution(address owner_, ForwardingWillStruct.Distribution calldata distribution_) private view {
-    if (distribution_.percent == 0 || distribution_.percent > 100) revert DistributionAssetInvalid();
-    if (distribution_.user == address(0) || distribution_.user == owner_ || _isContract(distribution_.user)) revert DistributionAssetInvalid();
+    if (distribution_.percent == 0 || distribution_.percent > 100) revert DistributionPercentInvalid();
+    if (distribution_.user == address(0) || distribution_.user == owner_ || _isContract(distribution_.user)) revert DistributionUserInvalid();
   }
 
   /**

@@ -1,6 +1,6 @@
 import { expect } from "chai";
-import { InheritanceWillRouter } from "../typechain-types";
-import { InheritanceWill, InheritanceWillStruct } from "./../typechain-types/contracts/InheritanceWill";
+import { InheritanceWill, InheritanceWillRouter } from "../typechain-types";
+import { InheritanceWillStruct } from "./../typechain-types/contracts/inheritance/InheritanceWillRouter";
 import * as InheritanceWillRouterMetadata from "../artifacts/contracts/inheritance/InheritanceWillRouter.sol/InheritanceWillRouter.json";
 import { ethers } from "hardhat";
 import { InterfaceAbi, Wallet } from "ethers";
@@ -28,17 +28,14 @@ describe("InheritanceRouter", function () {
 
   const SAFE_WALLET = process.env.SAFE_WALLET_SUCCESSFULLY as string;
   const SAFE_WALLET_INVALID_PARAM = process.env.SAFE_WALLET_LENGTH_TWO_ARRAY as string;
-  const SAFE_WALLET_EXISTED_GUARD = process.env.SAFE_WALLET_NOT_EXISTED_GUARD as string;
+  const SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID = process.env.SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID as string;
   const SAFE_WALLET_SIGNER_NOT_OWNER = process.env.SAFE_WALLET_SIGNER_NOT_OWNER as string;
-  const SAFE_WALLET_EXISTED_GUARD_INVALID = process.env.SAFE_WALLET_EXISTED_GUARD_INVALID as string;
-  const SAFE_WALLET_EXISTED_MODULE_INVALID = process.env.SAFE_WALLET_EXISTED_MODULE_INVALID as string;
 
   const SIGNER1_PRIVATE_KEY = process.env.SIGNER1_PRIVATE_KEY as string;
   const SIGNER2_PRIVATE_KEY = process.env.SIGNER2_PRIVATE_KEY as string;
 
   const BENEFICIARY1 = process.env.BENEFICIARY1 as string;
   const BENEFICIARY2 = process.env.BENEFICIARY2 as string;
-  const BENEFICIARY3 = process.env.BENEFICIARY3 as string;
 
   /* Api Kit, allow propose and share transactions with the other signers of safe wallet*/
   const apiKit = new SafeApiKit({
@@ -342,10 +339,10 @@ describe("InheritanceRouter", function () {
       const signer = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
 
       //Execute
-      const tx = await createWill(SAFE_WALLET_EXISTED_GUARD, mainConfig, extraConfig, signer);
+      const tx = await createWill(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, mainConfig, extraConfig, signer);
 
       //Expect
-      expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "ExistedGuardInSafeWallet").withArgs(SAFE_WALLET_EXISTED_GUARD);
+      expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "ExistedGuardInSafeWallet").withArgs(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID);
     });
   });
 
@@ -636,11 +633,11 @@ describe("InheritanceRouter", function () {
         lackOfOutgoingTxRange: 120,
       };
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
       const safeTransactionHash: string = await setWillConfig(protocolKit1, signer1.address, willId, mainConfig, extraConfig);
 
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
@@ -670,11 +667,11 @@ describe("InheritanceRouter", function () {
         lackOfOutgoingTxRange: 120,
       };
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
       const safeTransactionHash: string = await setWillConfig(protocolKit1, signer1.address, willId, mainConfig, extraConfig);
 
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
@@ -1080,7 +1077,7 @@ describe("InheritanceRouter", function () {
       const beneficiaries: string[] = [BENEFICIARY1, BENEFICIARY2];
       const minRequiredSignatures: bigint = BigInt(3);
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
       const safeTransactionHash: string = await setWillBeneficiaries(
         protocolKit1,
@@ -1090,7 +1087,7 @@ describe("InheritanceRouter", function () {
         beneficiaries,
         minRequiredSignatures
       );
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
@@ -1113,7 +1110,7 @@ describe("InheritanceRouter", function () {
       const beneficiaries: string[] = [BENEFICIARY1, BENEFICIARY2];
       const minRequiredSignatures: bigint = BigInt(3);
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
       const safeTransactionHash: string = await setWillBeneficiaries(
         protocolKit1,
@@ -1123,7 +1120,7 @@ describe("InheritanceRouter", function () {
         beneficiaries,
         minRequiredSignatures
       );
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
@@ -1473,12 +1470,12 @@ describe("InheritanceRouter", function () {
       const willId: bigint = BigInt(1);
       const lackOfOutgoingTxRange: bigint = BigInt(60);
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
 
       const safeTransactionHash: string = await setActivationTrigger(protocolKit1, signer1.address, willId, lackOfOutgoingTxRange);
 
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
@@ -1498,12 +1495,12 @@ describe("InheritanceRouter", function () {
       const willId: bigint = BigInt(1);
       const lackOfOutgoingTxRange: bigint = BigInt(60);
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
 
       const safeTransactionHash: string = await setActivationTrigger(protocolKit1, signer1.address, willId, lackOfOutgoingTxRange);
 
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
@@ -1578,12 +1575,12 @@ describe("InheritanceRouter", function () {
       const name: string = "SNN name";
       const note: string = "SNN note";
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
 
       const safeTransactionHash: string = await setNameNote(protocolKit1, signer1.address, willId, name, note);
 
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
@@ -1603,12 +1600,12 @@ describe("InheritanceRouter", function () {
       const name: string = "SNN name";
       const note: string = "SNN note";
 
-      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER1_PRIVATE_KEY);
       const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
 
       const safeTransactionHash: string = await setNameNote(protocolKit1, signer1.address, willId, name, note);
 
-      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID, SIGNER2_PRIVATE_KEY);
       signTransaction(protocolKit2, safeTransactionHash);
 
       //Execute
