@@ -1,5 +1,6 @@
+import { TetherToken } from "./../typechain-types/contracts/example/USDT.sol/TetherToken";
 import { InterfaceAbi, Wallet } from "ethers";
-import { ForwardingWill, ForwardingWillRouter, SafeGuard, Token } from "../typechain-types";
+import { ForwardingWill, ForwardingWillRouter, SafeGuard, TetherToken, Token } from "../typechain-types";
 import * as ForwardingWillRouterMetadata from "../artifacts/contracts/forwarding/ForwardingWillRouter.sol/ForwardingWillRouter.json";
 import { expect } from "chai";
 import { ethers } from "hardhat";
@@ -25,8 +26,8 @@ describe("Forwarding Router", function () {
   const provider = new ethers.JsonRpcProvider(SEPOLIA_RPC_URL);
 
   const FORWARDING_WILL_ROUTER = process.env.FORWARDING_WILL_ROUTER as string;
-  const SAFE_WALLET = process.env.SAFE_WALLET_SUCCESSFULLY as string;
-  const SAFE_WALLET_INVALID_PARAM = process.env.SAFE_WALLET_LENGTH_TWO_ARRAY as string;
+  const SAFE_WALLET = process.env.SAFE_WALLET as string;
+  const SAFE_WALLET_INVALID_PARAM = process.env.SAFE_WALLET_INVALID_PARAM as string;
   const SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID = process.env.SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID as string;
   const SAFE_WALLET_SIGNER_NOT_OWNER = process.env.SAFE_WALLET_SIGNER_NOT_OWNER as string;
 
@@ -45,10 +46,10 @@ describe("Forwarding Router", function () {
   });
 
   /* Protocol kit, allow signer interact with safe smart account  */
-  async function getProtocolKit(safeAddress: string, privateKeySigner: string): Promise<Safe> {
+  async function getProtocolKit(safeAddress: string, signerPrk: string): Promise<Safe> {
     const protocolKit: Safe = await Safe.init({
       provider: SEPOLIA_RPC_URL as string,
-      signer: privateKeySigner,
+      signer: signerPrk,
       safeAddress: safeAddress,
     });
     return protocolKit;
@@ -76,7 +77,7 @@ describe("Forwarding Router", function () {
   }
 
   /* Create transaction hash */
-  async function createTransaction(protocolKit: Safe, signer: string, metaTransactionDatas: MetaTransactionData[]): Promise<string> {
+  async function createTransaction(protocolKit: Safe, signerAddress: string, metaTransactionDatas: MetaTransactionData[]): Promise<string> {
     const safeTransaction: SafeTransaction = await protocolKit.createTransaction({
       transactions: metaTransactionDatas,
     });
@@ -89,7 +90,7 @@ describe("Forwarding Router", function () {
       safeAddress: safeAddress,
       safeTransactionData: safeTransaction.data,
       safeTxHash: safeTransactionHash,
-      senderAddress: signer,
+      senderAddress: signerAddress,
       senderSignature: signature.data,
     });
 
@@ -134,16 +135,56 @@ describe("Forwarding Router", function () {
     return tx;
   }
 
-  async function setWillConfig(protocolKit: Safe, signer: string, willId: bigint, mainConfig: MainConfig, extraConfig: ExtraConfig): Promise<string> {
+  async function enableModule(protocolKit: Safe, signerAddress: string, moduleAddress: string): Promise<string> {
+    const safeTransaction: SafeTransaction = await protocolKit.createEnableModuleTx(moduleAddress);
+    const safeTransactionHash: string = await protocolKit.getTransactionHash(safeTransaction);
+    const signature: SafeSignature = await protocolKit.signHash(safeTransactionHash);
+    const safeAddress: string = await protocolKit.getAddress();
+
+    await apiKit.proposeTransaction({
+      safeAddress: safeAddress,
+      safeTransactionData: safeTransaction.data,
+      safeTxHash: safeTransactionHash,
+      senderAddress: signerAddress,
+      senderSignature: signature.data,
+    });
+
+    return safeTransactionHash;
+  }
+
+  async function setGuard(protocolKit: Safe, signerAddress: string, guardAddress: string): Promise<string> {
+    const safeTransaction: SafeTransaction = await protocolKit.createEnableGuardTx(guardAddress);
+    const safeTransactionHash: string = await protocolKit.getTransactionHash(safeTransaction);
+    const signature: SafeSignature = await protocolKit.signHash(safeTransactionHash);
+    const safeAddress: string = await protocolKit.getAddress();
+
+    await apiKit.proposeTransaction({
+      safeAddress: safeAddress,
+      safeTransactionData: safeTransaction.data,
+      safeTxHash: safeTransactionHash,
+      senderAddress: signerAddress,
+      senderSignature: signature.data,
+    });
+
+    return safeTransactionHash;
+  }
+
+  async function setWillConfig(
+    protocolKit: Safe,
+    signerAddress: string,
+    willId: bigint,
+    mainConfig: MainConfig,
+    extraConfig: ExtraConfig
+  ): Promise<string> {
     const data = getEncodeFunctionData(ForwardingWillRouterMetadata.abi, "setWillConfig", [willId, mainConfig, extraConfig]);
     const metaTransactionData: MetaTransactionData = await getMetaTransactionData(FORWARDING_WILL_ROUTER, data);
-    const safeTransactionHash: string = await createTransaction(protocolKit, signer, [metaTransactionData]);
+    const safeTransactionHash: string = await createTransaction(protocolKit, signerAddress, [metaTransactionData]);
     return safeTransactionHash;
   }
 
   async function setWillDistributions(
     protocolKit: Safe,
-    signer: string,
+    signerAddress: string,
     willId: bigint,
     nicknames: string[],
     distributions: Distribution[]
@@ -151,25 +192,25 @@ describe("Forwarding Router", function () {
     distributions;
     const data = getEncodeFunctionData(ForwardingWillRouterMetadata.abi, "setWillDistributions", [willId, nicknames, distributions]);
     const metaTransactionData: MetaTransactionData = await getMetaTransactionData(FORWARDING_WILL_ROUTER, data);
-    const safeTransactionHash: string = await createTransaction(protocolKit, signer, [metaTransactionData]);
+    const safeTransactionHash: string = await createTransaction(protocolKit, signerAddress, [metaTransactionData]);
     return safeTransactionHash;
   }
-  async function setActivationTrigger(protocolKit: Safe, signer: string, willId: bigint, lackOfOutgoingTxRange: bigint): Promise<string> {
+  async function setActivationTrigger(protocolKit: Safe, signerAddress: string, willId: bigint, lackOfOutgoingTxRange: bigint): Promise<string> {
     const data = getEncodeFunctionData(ForwardingWillRouterMetadata.abi, "setActivationTrigger", [willId, lackOfOutgoingTxRange]);
     const metaTransactionData: MetaTransactionData = await getMetaTransactionData(FORWARDING_WILL_ROUTER, data);
-    const safeTransactionHash: string = await createTransaction(protocolKit, signer, [metaTransactionData]);
+    const safeTransactionHash: string = await createTransaction(protocolKit, signerAddress, [metaTransactionData]);
     return safeTransactionHash;
   }
-  async function setNameNote(protocolKit: Safe, signer: string, willId: bigint, name: string, note: string) {
+  async function setNameNote(protocolKit: Safe, signerAddress: string, willId: bigint, name: string, note: string) {
     const data = getEncodeFunctionData(ForwardingWillRouterMetadata.abi, "setNameNote", [willId, name, note]);
     const metaTransactionData: MetaTransactionData = await getMetaTransactionData(FORWARDING_WILL_ROUTER, data);
-    const safeTransactionHash: string = await createTransaction(protocolKit, signer, [metaTransactionData]);
+    const safeTransactionHash: string = await createTransaction(protocolKit, signerAddress, [metaTransactionData]);
     return safeTransactionHash;
   }
 
-  async function activeWill(willId: bigint, assets: string[], isETH: boolean, signer: Wallet) {
+  async function activeWill(willId: bigint, assets: string[], isETH: boolean, signerAddress: Wallet) {
     const forwardingWillRouter: ForwardingWillRouter = (await getContract("ForwardingWillRouter", FORWARDING_WILL_ROUTER)) as ForwardingWillRouter;
-    const tx = await forwardingWillRouter.connect(signer).activeWill(willId, assets, isETH);
+    const tx = await forwardingWillRouter.connect(signerAddress).activeWill(willId, assets, isETH);
     return tx;
   }
 
@@ -1384,16 +1425,14 @@ describe("Forwarding Router", function () {
     });
   });
 
-  describe("activeWill", async function () {
-    const signer1: Wallet = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
-    const usdc: Token = (await getContract("Token", USDC)) as Token;
-    const usdt: Token = (await getContract("Token", USDT)) as Token;
-    usdc.connect(signer1).mint(SAFE_WALLET, ethers.parseEther("1000"));
-    usdt.connect(signer1).mint(SAFE_WALLET, ethers.parseEther("1000"));
-
+  describe("activeWill", function () {
     it("Should active will successfully", async function () {
       const forwardingWillRouter: ForwardingWillRouter = (await getContract("ForwardingWillRouter", FORWARDING_WILL_ROUTER)) as ForwardingWillRouter;
       const signer = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
+      const usdc: Token = (await getContract("Token", USDC)) as Token;
+      const usdt: TetherToken = (await getContract("TetherToken", USDT)) as TetherToken;
+      usdc.connect(signer).mint(SAFE_WALLET, ethers.parseEther("1000"));
+      usdt.connect(signer).transfer(SAFE_WALLET, ethers.parseEther("1000"));
 
       const willId: bigint = BigInt(1);
       const willAddress: string = await forwardingWillRouter.willAddresses(willId);
@@ -1407,7 +1446,7 @@ describe("Forwarding Router", function () {
       const balanceOwnerUSDT: number = Number(await usdt.balanceOf(will.getWillOwner()));
 
       // Input active will
-      const assets: string[] = [USDT, USDC];
+      const assets: string[] = [USDC, USDT];
       const isETH: boolean = false;
 
       //State Expect
@@ -1432,6 +1471,30 @@ describe("Forwarding Router", function () {
         expect(balanceUSDCBeneficiary).to.equals(amountUSDCExpect);
         expect(balanceUSDTBeneficiary).to.equals(amountUSDTExpect);
       }
+    });
+
+    it.only("Should revert if transfer token fail", async function () {
+      const signer1: Wallet = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
+      const usdt: TetherToken = (await getContract("TetherToken", USDT)) as TetherToken;
+
+      const forwardingWillRouter: ForwardingWillRouter = (await getContract("ForwardingWillRouter", FORWARDING_WILL_ROUTER)) as ForwardingWillRouter;
+
+      //Input
+      const willId: bigint = BigInt(6);
+      const assets: string[] = [USDT];
+      const isETH: boolean = false;
+
+      const willAddress: string = await forwardingWillRouter.willAddresses(willId);
+      const will = (await getContract("ForwardingWill", willAddress)) as ForwardingWill;
+
+      // transfer usdt token to safe wallet
+      await usdt.connect(signer1).transfer(SAFE_WALLET, ethers.parseEther("100"));
+
+      // add the safe wallet address to USDT token blacklisted
+      await usdt.connect(signer1).addBlackList(SAFE_WALLET);
+
+      //Expect
+      await expect(activeWill(willId, assets, isETH, signer1)).to.be.revertedWithCustomError(will, "ExecTransactionFromModuleFailed");
     });
 
     it("Should revert if not time active will", async function () {
