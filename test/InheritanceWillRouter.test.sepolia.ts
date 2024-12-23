@@ -20,14 +20,14 @@ dotenv.config();
 
 describe("InheritanceRouter", function () {
   /* config */
-  const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL;
-  const CHAIN_ID = process.env.SEPOLIA_CHAIN_ID;
-  const provider = new ethers.JsonRpcProvider(SEPOLIA_RPC_URL);
+  const RPC = process.env.SEPOLIA_RPC_URL as string;
+  const CHAIN_ID = process.env.SEPOLIA_CHAIN_ID as string;
 
+  const provider = new ethers.JsonRpcProvider(RPC);
   const INHERITANCE_WILL_ROUTER = process.env.INHERITANCE_WILL_ROUTER as string;
 
-  const SAFE_WALLET = process.env.SAFE_WALLET_SUCCESSFULLY as string;
-  const SAFE_WALLET_INVALID_PARAM = process.env.SAFE_WALLET_LENGTH_TWO_ARRAY as string;
+  const SAFE_WALLET = process.env.SAFE_WALLET as string;
+  const SAFE_WALLET_INVALID_PARAM = process.env.SAFE_WALLET_INVALID_PARAM as string;
   const SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID = process.env.SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID as string;
   const SAFE_WALLET_SIGNER_NOT_OWNER = process.env.SAFE_WALLET_SIGNER_NOT_OWNER as string;
 
@@ -39,14 +39,14 @@ describe("InheritanceRouter", function () {
 
   /* Api Kit, allow propose and share transactions with the other signers of safe wallet*/
   const apiKit = new SafeApiKit({
-    chainId: BigInt(CHAIN_ID as string),
+    chainId: BigInt(CHAIN_ID),
   });
 
   /* Protocol kit, allow signer interact with safe smart account  */
-  async function getProtocolKit(safeAddress: string, privateKeySigner: string): Promise<Safe> {
+  async function getProtocolKit(safeAddress: string, signerPrivateKey: string): Promise<Safe> {
     const protocolKit: Safe = await Safe.init({
-      provider: SEPOLIA_RPC_URL as string,
-      signer: privateKeySigner,
+      provider: RPC as string,
+      signer: signerPrivateKey,
       safeAddress: safeAddress,
     });
     return protocolKit;
@@ -64,7 +64,7 @@ describe("InheritanceRouter", function () {
   }
 
   /* Create transaction hash */
-  async function createTransaction(protocolKit: Safe, signer: string, metaTransactionDatas: MetaTransactionData[]): Promise<string> {
+  async function createTransaction(protocolKit: Safe, signerAddress: string, metaTransactionDatas: MetaTransactionData[]): Promise<string> {
     const safeTransaction: SafeTransaction = await protocolKit.createTransaction({
       transactions: metaTransactionDatas,
     });
@@ -77,7 +77,7 @@ describe("InheritanceRouter", function () {
       safeAddress: safeAddress,
       safeTransactionData: safeTransaction.data,
       safeTxHash: safeTransactionHash,
-      senderAddress: signer,
+      senderAddress: signerAddress,
       senderSignature: signature.data,
     });
 
@@ -127,16 +127,56 @@ describe("InheritanceRouter", function () {
     return tx;
   }
 
-  async function setWillConfig(protocolKit: Safe, signer: string, willId: bigint, mainConfig: MainConfig, extraConfig: ExtraConfig): Promise<string> {
+  async function enableModule(protocolKit: Safe, signerAddress: string, moduleAddress: string): Promise<string> {
+    const safeTransaction: SafeTransaction = await protocolKit.createEnableModuleTx(moduleAddress);
+    const safeTransactionHash: string = await protocolKit.getTransactionHash(safeTransaction);
+    const signature: SafeSignature = await protocolKit.signHash(safeTransactionHash);
+    const safeAddress: string = await protocolKit.getAddress();
+
+    await apiKit.proposeTransaction({
+      safeAddress: safeAddress,
+      safeTransactionData: safeTransaction.data,
+      safeTxHash: safeTransactionHash,
+      senderAddress: signerAddress,
+      senderSignature: signature.data,
+    });
+
+    return safeTransactionHash;
+  }
+
+  async function setGuard(protocolKit: Safe, signerAddress: string, guardAddress: string): Promise<string> {
+    const safeTransaction: SafeTransaction = await protocolKit.createEnableGuardTx(guardAddress);
+    const safeTransactionHash: string = await protocolKit.getTransactionHash(safeTransaction);
+    const signature: SafeSignature = await protocolKit.signHash(safeTransactionHash);
+    const safeAddress: string = await protocolKit.getAddress();
+
+    await apiKit.proposeTransaction({
+      safeAddress: safeAddress,
+      safeTransactionData: safeTransaction.data,
+      safeTxHash: safeTransactionHash,
+      senderAddress: signerAddress,
+      senderSignature: signature.data,
+    });
+
+    return safeTransactionHash;
+  }
+
+  async function setWillConfig(
+    protocolKit: Safe,
+    signerAddress: string,
+    willId: bigint,
+    mainConfig: MainConfig,
+    extraConfig: ExtraConfig
+  ): Promise<string> {
     const data = getEncodeFunctionData(InheritanceWillRouterMetadata.abi, "setWillConfig", [willId, mainConfig, extraConfig]);
     const metaTransactionData: MetaTransactionData = await getMetaTransactionData(INHERITANCE_WILL_ROUTER, data);
-    const safeTransactionHash: string = await createTransaction(protocolKit, signer, [metaTransactionData]);
+    const safeTransactionHash: string = await createTransaction(protocolKit, signerAddress, [metaTransactionData]);
     return safeTransactionHash;
   }
 
   async function setWillBeneficiaries(
     protocolKit: Safe,
-    signer: string,
+    signerAddress: string,
     willId: bigint,
     nicknames: string[],
     beneficiaries: string[],
@@ -149,21 +189,21 @@ describe("InheritanceRouter", function () {
       minRequiredSignatures,
     ]);
     const metaTransactionData: MetaTransactionData = await getMetaTransactionData(INHERITANCE_WILL_ROUTER, data);
-    const safeTransactionHash: string = await createTransaction(protocolKit, signer, [metaTransactionData]);
+    const safeTransactionHash: string = await createTransaction(protocolKit, signerAddress, [metaTransactionData]);
     return safeTransactionHash;
   }
 
-  async function setActivationTrigger(protocolKit: Safe, signer: string, willId: bigint, lackOfOutgoingTxRange: bigint): Promise<string> {
+  async function setActivationTrigger(protocolKit: Safe, signerAddress: string, willId: bigint, lackOfOutgoingTxRange: bigint): Promise<string> {
     const data = getEncodeFunctionData(InheritanceWillRouterMetadata.abi, "setActivationTrigger", [willId, lackOfOutgoingTxRange]);
     const metaTransactionData: MetaTransactionData = await getMetaTransactionData(INHERITANCE_WILL_ROUTER, data);
-    const safeTransactionHash: string = await createTransaction(protocolKit, signer, [metaTransactionData]);
+    const safeTransactionHash: string = await createTransaction(protocolKit, signerAddress, [metaTransactionData]);
     return safeTransactionHash;
   }
 
-  async function setNameNote(protocolKit: Safe, signer: string, willId: bigint, name: string, note: string) {
+  async function setNameNote(protocolKit: Safe, signerAddress: string, willId: bigint, name: string, note: string) {
     const data = getEncodeFunctionData(InheritanceWillRouterMetadata.abi, "setNameNote", [willId, name, note]);
     const metaTransactionData: MetaTransactionData = await getMetaTransactionData(INHERITANCE_WILL_ROUTER, data);
-    const safeTransactionHash: string = await createTransaction(protocolKit, signer, [metaTransactionData]);
+    const safeTransactionHash: string = await createTransaction(protocolKit, signerAddress, [metaTransactionData]);
     return safeTransactionHash;
   }
   async function activeWill(willId: bigint, signer: Wallet) {
@@ -191,7 +231,7 @@ describe("InheritanceRouter", function () {
         INHERITANCE_WILL_ROUTER
       )) as InheritanceWillRouter;
 
-      //Input
+      //Param
       const mainConfig: MainConfig = {
         name: "CW name",
         note: "CW note",
@@ -203,19 +243,24 @@ describe("InheritanceRouter", function () {
         minRequiredSignatures: 1,
         lackOfOutgoingTxRange: 100,
       };
-      const signer = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
+
+      //Signer
+      const signer1 = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
+      const signer2 = new ethers.Wallet(SIGNER2_PRIVATE_KEY, provider);
+      const protocolKit1: Safe = await getProtocolKit(SAFE_WALLET, SIGNER1_PRIVATE_KEY);
+      const protocolKit2: Safe = await getProtocolKit(SAFE_WALLET, SIGNER2_PRIVATE_KEY);
 
       //State Expect
       const willIdExpect: bigint = (await inheritanceWillRouter._willId()) + BigInt(1);
-      const nonceByUserExpect: bigint = (await inheritanceWillRouter.nonceByUsers(signer.address)) + BigInt(1);
-      const isActiveExpect: bigint = BigInt(1);
+      const nonceByUserExpect: bigint = (await inheritanceWillRouter.nonceByUsers(signer1.address)) + BigInt(1);
+      const isActiveExpect: bigint = BigInt(2);
 
-      //Execute
-      const tx = await createWill(SAFE_WALLET, mainConfig, extraConfig, signer);
+      //Execute Create Will
+      const tx = await createWill(SAFE_WALLET, mainConfig, extraConfig, signer1);
 
       //State After Execute
       const willId_: bigint = await inheritanceWillRouter._willId();
-      const nonceByUser_ = await inheritanceWillRouter.nonceByUsers(signer.address);
+      const nonceByUser_ = await inheritanceWillRouter.nonceByUsers(signer1.address);
       const willAddress_: string = await inheritanceWillRouter.willAddresses(willId_);
       const guardAddress_: string = await inheritanceWillRouter.guardAddresses(willId_);
       const will_: InheritanceWill = (await getContract("InheritanceWill", willAddress_)) as InheritanceWill;
@@ -223,6 +268,10 @@ describe("InheritanceRouter", function () {
       const beneficiaries_: string[] = await will_.getBeneficiaries();
       const activationTrigger_: bigint = await will_.getActivationTrigger();
       const minRequiredSignatures_: bigint = await will_.getMinRequiredSignatures();
+
+      //Execute Enable Module
+
+      //Execute SetGuard
 
       //Expect
       expect(willId_).to.equal(willIdExpect);
@@ -344,231 +393,230 @@ describe("InheritanceRouter", function () {
       //Expect
       expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "ExistedGuardInSafeWallet").withArgs(SAFE_WALLET_EXISTED_GUARD_MODULE_INVALID);
     });
+
+    it("Should revert if signer is not owner of safe wallet ", async function () {
+      const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
+        "InheritanceWillRouter",
+        INHERITANCE_WILL_ROUTER
+      )) as InheritanceWillRouter;
+
+      //Input
+
+      const mainConfig: MainConfig = {
+        name: "CW name",
+        note: "CW note",
+        nickNames: ["CW nickname 1"],
+        beneficiaries: [BENEFICIARY1],
+      };
+
+      const extraConfig: ExtraConfig = {
+        minRequiredSignatures: 1,
+        lackOfOutgoingTxRange: 60,
+      };
+      const signer = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
+
+      //Execute
+      const tx = await createWill(SAFE_WALLET_SIGNER_NOT_OWNER, mainConfig, extraConfig, signer);
+
+      //Expect
+      expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "SignerIsNotOwnerOfSafeWallet");
+    });
+
+    it("Should revert if activation trigger invalid ", async function () {
+      const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
+        "InheritanceWillRouter",
+        INHERITANCE_WILL_ROUTER
+      )) as InheritanceWillRouter;
+
+      //Input
+
+      const mainConfig: MainConfig = {
+        name: "CW name",
+        note: "CW note",
+        nickNames: ["CW nickname 1"],
+        beneficiaries: [BENEFICIARY1],
+      };
+
+      const extraConfig: ExtraConfig = {
+        minRequiredSignatures: 1,
+        lackOfOutgoingTxRange: 0,
+      };
+      const signer1 = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
+
+      //Execute
+      const tx = await createWill(SAFE_WALLET_INVALID_PARAM, mainConfig, extraConfig, signer1);
+
+      //Expect
+      expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "ActivationTriggerInvalid");
+    });
+
+    it("Should revert if beneficiary = zeroAddress", async function () {
+      const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
+        "InheritanceWillRouter",
+        INHERITANCE_WILL_ROUTER
+      )) as InheritanceWillRouter;
+
+      //Input
+      const mainConfig: MainConfig = {
+        name: "CW name",
+        note: "CW note",
+        nickNames: ["CW nickname 1"],
+        beneficiaries: [ethers.ZeroAddress],
+      };
+
+      const extraConfig: ExtraConfig = {
+        minRequiredSignatures: 1,
+        lackOfOutgoingTxRange: 60,
+      };
+
+      const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
+
+      //Execute
+      const tx = await createWill(SAFE_WALLET_INVALID_PARAM, mainConfig, extraConfig, signer1);
+
+      expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "BeneficiaryInvalid");
+    });
+
+    it("Should revert if beneficiary is owner", async function () {
+      const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
+        "InheritanceWillRouter",
+        INHERITANCE_WILL_ROUTER
+      )) as InheritanceWillRouter;
+
+      //Input
+      const mainConfig: MainConfig = {
+        name: "CW name",
+        note: "CW note",
+        nickNames: ["CW nickname 1"],
+        beneficiaries: [SAFE_WALLET_INVALID_PARAM],
+      };
+
+      const extraConfig: ExtraConfig = {
+        minRequiredSignatures: 1,
+        lackOfOutgoingTxRange: 60,
+      };
+
+      const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
+
+      //Execute
+      const tx = await createWill(SAFE_WALLET_INVALID_PARAM, mainConfig, extraConfig, signer1);
+
+      expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "BeneficiaryInvalid");
+    });
+
+    it("Should revert if beneficiary is a contract", async function () {
+      const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
+        "InheritanceWillRouter",
+        INHERITANCE_WILL_ROUTER
+      )) as InheritanceWillRouter;
+
+      //Input
+      const mainConfig: MainConfig = {
+        name: "CW name",
+        note: "CW note",
+        nickNames: ["CW nickname 1"],
+        beneficiaries: [INHERITANCE_WILL_ROUTER],
+      };
+
+      const extraConfig: ExtraConfig = {
+        minRequiredSignatures: 1,
+        lackOfOutgoingTxRange: 60,
+      };
+
+      const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
+
+      //Execute
+      const tx = await createWill(SAFE_WALLET_INVALID_PARAM, mainConfig, extraConfig, signer1);
+
+      expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "BeneficiaryInvalid");
+    });
+
+    it("Should revert if beneficiary is the signer of safe wallet", async function () {
+      const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
+        "InheritanceWillRouter",
+        INHERITANCE_WILL_ROUTER
+      )) as InheritanceWillRouter;
+
+      const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
+
+      //Input
+      const mainConfig: MainConfig = {
+        name: "CW name",
+        note: "CW note",
+        nickNames: ["CW nickname 1"],
+        beneficiaries: [signer1.address],
+      };
+
+      const extraConfig: ExtraConfig = {
+        minRequiredSignatures: 1,
+        lackOfOutgoingTxRange: 60,
+      };
+
+      //Execute
+      const tx = await createWill(SAFE_WALLET_INVALID_PARAM, mainConfig, extraConfig, signer1);
+
+      expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "BeneficiaryInvalid");
+    });
+
+    it("Should revert if revert min required signature invalid ", async function () {
+      const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
+        "InheritanceWillRouter",
+        INHERITANCE_WILL_ROUTER
+      )) as InheritanceWillRouter;
+
+      //Input
+
+      const mainConfig: MainConfig = {
+        name: "CW name",
+        note: "CW note",
+        nickNames: ["CW nickname 1", "CW nickname 2"],
+        beneficiaries: [BENEFICIARY1, BENEFICIARY2],
+      };
+
+      const extraConfig: ExtraConfig = {
+        minRequiredSignatures: 3,
+        lackOfOutgoingTxRange: 60,
+      };
+      const signer = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
+
+      //Execute
+      const tx = await createWill(SAFE_WALLET_INVALID_PARAM, mainConfig, extraConfig, signer);
+
+      //Expect
+      expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "MinRequiredSignaturesInvalid");
+    });
+
+    it("Should revert if revert min required signature invalid ", async function () {
+      const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
+        "InheritanceWillRouter",
+        INHERITANCE_WILL_ROUTER
+      )) as InheritanceWillRouter;
+
+      //Input
+
+      const mainConfig: MainConfig = {
+        name: "CW name",
+        note: "CW note",
+        nickNames: ["CW nickname 1", "CW nickname 2"],
+        beneficiaries: [BENEFICIARY1, BENEFICIARY2],
+      };
+
+      const extraConfig: ExtraConfig = {
+        minRequiredSignatures: 0,
+        lackOfOutgoingTxRange: 60,
+      };
+      const signer = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
+
+      //Execute
+      const tx = await createWill(SAFE_WALLET_INVALID_PARAM, mainConfig, extraConfig, signer);
+
+      //Expect
+      expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "MinRequiredSignaturesInvalid");
+    });
   });
-
-  it("Should revert if signer is not owner of safe wallet ", async function () {
-    const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
-      "InheritanceWillRouter",
-      INHERITANCE_WILL_ROUTER
-    )) as InheritanceWillRouter;
-
-    //Input
-
-    const mainConfig: MainConfig = {
-      name: "CW name",
-      note: "CW note",
-      nickNames: ["CW nickname 1"],
-      beneficiaries: [BENEFICIARY1],
-    };
-
-    const extraConfig: ExtraConfig = {
-      minRequiredSignatures: 1,
-      lackOfOutgoingTxRange: 60,
-    };
-    const signer = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
-
-    //Execute
-    const tx = await createWill(SAFE_WALLET_SIGNER_NOT_OWNER, mainConfig, extraConfig, signer);
-
-    //Expect
-    expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "SignerIsNotOwnerOfSafeWallet");
-  });
-
-  it("Should revert if activation trigger invalid ", async function () {
-    const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
-      "InheritanceWillRouter",
-      INHERITANCE_WILL_ROUTER
-    )) as InheritanceWillRouter;
-
-    //Input
-
-    const mainConfig: MainConfig = {
-      name: "CW name",
-      note: "CW note",
-      nickNames: ["CW nickname 1"],
-      beneficiaries: [BENEFICIARY1],
-    };
-
-    const extraConfig: ExtraConfig = {
-      minRequiredSignatures: 1,
-      lackOfOutgoingTxRange: 0,
-    };
-    const signer1 = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
-
-    //Execute
-    const tx = await createWill(SAFE_WALLET_INVALID_PARAM, mainConfig, extraConfig, signer1);
-
-    //Expect
-    expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "ActivationTriggerInvalid");
-  });
-
-  it("Should revert if beneficiary = zeroAddress", async function () {
-    const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
-      "InheritanceWillRouter",
-      INHERITANCE_WILL_ROUTER
-    )) as InheritanceWillRouter;
-
-    //Input
-    const mainConfig: MainConfig = {
-      name: "CW name",
-      note: "CW note",
-      nickNames: ["CW nickname 1"],
-      beneficiaries: [ethers.ZeroAddress],
-    };
-
-    const extraConfig: ExtraConfig = {
-      minRequiredSignatures: 1,
-      lackOfOutgoingTxRange: 60,
-    };
-
-    const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
-
-    //Execute
-    const tx = await createWill(SAFE_WALLET_INVALID_PARAM, mainConfig, extraConfig, signer1);
-
-    expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "BeneficiaryInvalid");
-  });
-
-  it("Should revert if beneficiary is owner", async function () {
-    const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
-      "InheritanceWillRouter",
-      INHERITANCE_WILL_ROUTER
-    )) as InheritanceWillRouter;
-
-    //Input
-    const mainConfig: MainConfig = {
-      name: "CW name",
-      note: "CW note",
-      nickNames: ["CW nickname 1"],
-      beneficiaries: [SAFE_WALLET_INVALID_PARAM],
-    };
-
-    const extraConfig: ExtraConfig = {
-      minRequiredSignatures: 1,
-      lackOfOutgoingTxRange: 60,
-    };
-
-    const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
-
-    //Execute
-    const tx = await createWill(SAFE_WALLET_INVALID_PARAM, mainConfig, extraConfig, signer1);
-
-    expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "BeneficiaryInvalid");
-  });
-
-  it("Should revert if beneficiary is a contract", async function () {
-    const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
-      "InheritanceWillRouter",
-      INHERITANCE_WILL_ROUTER
-    )) as InheritanceWillRouter;
-
-    //Input
-    const mainConfig: MainConfig = {
-      name: "CW name",
-      note: "CW note",
-      nickNames: ["CW nickname 1"],
-      beneficiaries: [INHERITANCE_WILL_ROUTER],
-    };
-
-    const extraConfig: ExtraConfig = {
-      minRequiredSignatures: 1,
-      lackOfOutgoingTxRange: 60,
-    };
-
-    const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
-
-    //Execute
-    const tx = await createWill(SAFE_WALLET_INVALID_PARAM, mainConfig, extraConfig, signer1);
-
-    expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "BeneficiaryInvalid");
-  });
-
-  it("Should revert if beneficiary is the signer of safe wallet", async function () {
-    const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
-      "InheritanceWillRouter",
-      INHERITANCE_WILL_ROUTER
-    )) as InheritanceWillRouter;
-
-    const signer1 = await new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
-
-    //Input
-    const mainConfig: MainConfig = {
-      name: "CW name",
-      note: "CW note",
-      nickNames: ["CW nickname 1"],
-      beneficiaries: [signer1.address],
-    };
-
-    const extraConfig: ExtraConfig = {
-      minRequiredSignatures: 1,
-      lackOfOutgoingTxRange: 60,
-    };
-
-    //Execute
-    const tx = await createWill(SAFE_WALLET_INVALID_PARAM, mainConfig, extraConfig, signer1);
-
-    expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "BeneficiaryInvalid");
-  });
-
-  it("Should revert if revert min required signature invalid ", async function () {
-    const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
-      "InheritanceWillRouter",
-      INHERITANCE_WILL_ROUTER
-    )) as InheritanceWillRouter;
-
-    //Input
-
-    const mainConfig: MainConfig = {
-      name: "CW name",
-      note: "CW note",
-      nickNames: ["CW nickname 1", "CW nickname 2"],
-      beneficiaries: [BENEFICIARY1, BENEFICIARY2],
-    };
-
-    const extraConfig: ExtraConfig = {
-      minRequiredSignatures: 3,
-      lackOfOutgoingTxRange: 60,
-    };
-    const signer = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
-
-    //Execute
-    const tx = await createWill(SAFE_WALLET_INVALID_PARAM, mainConfig, extraConfig, signer);
-
-    //Expect
-    expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "MinRequiredSignaturesInvalid");
-  });
-
-  it("Should revert if revert min required signature invalid ", async function () {
-    const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
-      "InheritanceWillRouter",
-      INHERITANCE_WILL_ROUTER
-    )) as InheritanceWillRouter;
-
-    //Input
-
-    const mainConfig: MainConfig = {
-      name: "CW name",
-      note: "CW note",
-      nickNames: ["CW nickname 1", "CW nickname 2"],
-      beneficiaries: [BENEFICIARY1, BENEFICIARY2],
-    };
-
-    const extraConfig: ExtraConfig = {
-      minRequiredSignatures: 0,
-      lackOfOutgoingTxRange: 60,
-    };
-    const signer = new ethers.Wallet(SIGNER1_PRIVATE_KEY, provider);
-
-    //Execute
-    const tx = await createWill(SAFE_WALLET_INVALID_PARAM, mainConfig, extraConfig, signer);
-
-    //Expect
-    expect(tx).to.be.revertedWithCustomError(inheritanceWillRouter, "MinRequiredSignaturesInvalid");
-  });
-
   /* Set Will Config */
   describe("setWillConfig", function () {
-    it.only("Should update will config successfully", async function () {
+    it("Should update will config successfully", async function () {
       const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
         "InheritanceWillRouter",
         INHERITANCE_WILL_ROUTER
@@ -1428,7 +1476,7 @@ describe("InheritanceRouter", function () {
   });
 
   describe("setActivationTrigger", function () {
-    it.only("Should update will activation trigger", async function () {
+    it("Should update will activation trigger", async function () {
       const inheritanceWillRouter: InheritanceWillRouter = (await getContract(
         "InheritanceWillRouter",
         INHERITANCE_WILL_ROUTER

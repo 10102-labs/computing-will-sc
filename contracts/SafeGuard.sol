@@ -13,7 +13,6 @@ contract SafeGuard is BaseGuard {
 
   /*Error */
   error SafeGuardInitialized();
-  error SenderIsInvalid();
   error ThresholdOfSafeWalletIsInvalid();
 
   /*State */
@@ -63,21 +62,19 @@ contract SafeGuard is BaseGuard {
     address msgSender
   ) external {
     if (msg.sender == address(safeWallet)) {
-      lastTimestampTxs == block.timestamp;
-    } else {
-      if (msg.sender != msgSender) {
-        revert SenderIsInvalid();
-      }
-
-      uint256 nonce = safeWallet.nonce();
-      nonce--;
-      bytes32 dataHash = keccak256(
-        safeWallet.encodeTransactionData(to, value, data, operation, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, nonce)
-      );
-      uint256 requiredSignatures = safeWallet.getThreshold();
-
-      checkNSignatures(msgSender, dataHash, data, signatures, requiredSignatures);
       lastTimestampTxs = block.timestamp;
+    } else {
+      if (msg.sender == msgSender) {
+        uint256 nonce = safeWallet.nonce();
+        nonce--;
+        bytes32 dataHash = keccak256(
+          safeWallet.encodeTransactionData(to, value, data, operation, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, nonce)
+        );
+        uint256 requiredSignatures = safeWallet.getThreshold();
+
+        checkNSignatures(msgSender, dataHash, data, signatures, requiredSignatures);
+        lastTimestampTxs = block.timestamp;
+      }
     }
   }
 
